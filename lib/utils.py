@@ -29,13 +29,13 @@ def gen_points_on_diagonal(n):
     return np.asarray(points)
 
 
-def uniform_circle(num_samples, R=1):
+def uniform_circle(num_samples, cx=0, cy=0, R=1):
     p = np.ones((num_samples, 2))
     # generate the points
     r2 = R * np.sqrt(np.random.rand(num_samples, 1))
     theta2 = 2 * np.pi * np.random.rand(num_samples, 1)
-    p[:, 0] = (r2 * np.cos(theta2)).flatten()
-    p[:, 1] = (r2 * np.sin(theta2)).flatten()
+    p[:, 0] = (r2 * np.cos(theta2)).flatten() + cx
+    p[:, 1] = (r2 * np.sin(theta2)).flatten() + cy
     return p
 
 

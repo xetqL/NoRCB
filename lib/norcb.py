@@ -2,6 +2,7 @@ from .utils import *
 from .math import *
 from .show import *
 import skgeom as sg
+from skgeom.draw import draw
 
 
 def unique(l, eq):
@@ -32,53 +33,55 @@ def segment_to_rvector(segment):
     return point_to_numpy(segment.source()) - point_to_numpy(segment.target())
 
 
-def select_bisection(s1, s2, vec, point, p):
-    _p = point_to_numpy(p)
-    sgn= sign(side1(vec, _p - point_to_numpy(point)))
-    if sgn > 0:
-        s1.append(p)
+def select_bisection(s1, s2, vec, pmedian, p):
+    sgn = sign(side1(vec, p - pmedian))
+    if sgn <= 0:
+        s1.append(sg.Point2(*p))
     else:
-        s2.append(p)
+        s2.append(sg.Point2(*p))
 
-VERY_SMALL=1e-12
-def split_domain(segments, p, v):
+
+VERY_SMALL = 1e-12
+def split_domain(polygon, pmedian, v):
+
+    segments = list(polygon.edges)
+    p = sg.Point2(*pmedian)
+
+    #assert polygon.oriented_side(p) == sg.Sign.POSITIVE, polygon.oriented_side(p)
+
     vp =  v
     vm = -v
-    pr1 = sg.Ray2(sg.Point2(*p), sg.Vector2(*vp))
-    mr1 = sg.Ray2(sg.Point2(*p), sg.Vector2(*vm))
+    pr1 = sg.Ray2(p, sg.Vector2(*vp))
+    mr1 = sg.Ray2(p, sg.Vector2(*vm))
 
     # start with a set of segment and a ray
     # find intersections
     intersections = []
     for s in segments:
-        iplus = (sg.intersection(mr1, s))
+        iplus =  (sg.intersection(mr1, s))
         iminus = (sg.intersection(pr1, s))
         i = iplus if iplus else iminus
         intersections.append(i)
 
-    intersections = list(filter(lambda i: i, intersections))
+    intersections = [x for x in intersections if x is not None]
     intersections = unique(intersections,
-                           lambda x, y: abs(float(x.x())-float(y.x())) < VERY_SMALL and abs(float(x.y()) -
-                               float(y.y())) < VERY_SMALL)
+                           lambda x, y: abs(float(x.x())-float(y.x())) < VERY_SMALL and abs(float(x.y()) - float(y.y())) < VERY_SMALL)
 
     sgbisect = sg.Segment2(*intersections)
 
-    vec = segment_to_rvector(sg.Segment2(*intersections))
-
     s1 = [] + intersections
     s2 = [] + intersections
+
     for s in segments:
-        select_bisection(s1, s2, vec, sgbisect.source(), s.source())
-        select_bisection(s1, s2, vec, sgbisect.source(), s.target())
+        select_bisection(s1, s2, vp, pmedian, point_to_numpy(s.source()))
+        select_bisection(s1, s2, vp, pmedian, point_to_numpy(s.target()))
 
     chull = sg.convex_hull.graham_andrew(s1)
     phull1 = sg.Polygon(chull)
-    #print("1.", list(phull.edges))
 
     chull = sg.convex_hull.graham_andrew(s2)
     phull2 = sg.Polygon(chull)
-    #print("2.", list(phull.edges))
-    #draw(phull)
+
     return phull1, phull2
 
 
@@ -95,7 +98,7 @@ def vel2(v):
     return point2(v)
 
 
-def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0 ):
+def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
     N = len(points)
     width = np.amax(points, axis=0) - np.amin(points, axis=0)
 
@@ -103,7 +106,8 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0 )
     avg_vel = get_average_velocity(velocities, axis=np.argmin(width))
 
     if N <= 1 or P <= 1:
-        sg.draw.draw(domain)
+        for e in domain.edges:
+            draw(e)
         if ax:
             show_points(ax, points, s=0.5)
         return [(bisectors, i - 2**depth)]
@@ -126,7 +130,12 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0 )
 
     rmedian = np.median(rpoints[:, 0])
     pmedian = np.dot(mR, [rmedian, 1.0])
-
+    #plt.figure()
+    #for p in points:
+    #    draw(sg.Point2(*p), s=1)
+    #for e in domain.edges:
+    #    draw(e)
+    #plt.show()
     # partition
     lpart_mask = np.where(rpoints[:, 0] <= rmedian)
     rpart_mask = np.where(rpoints[:, 0] > rmedian)
@@ -143,8 +152,8 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0 )
 
     d1, d2 = split_domain(domain, pmedian, avg_vel)
 
-    l = partitioning(ax, P / 2, pleft,   vleft, domain=list(d1.edges), bisectors=bisectors + [(pmedian, avg_vel, [-1, 0])], i=2*i,   depth=depth+1)
-    r = partitioning(ax, P / 2, pright, vright, domain=list(d2.edges), bisectors=bisectors + [(pmedian, avg_vel, [1])],     i=2*i+1, depth=depth+1)
+    l = partitioning(ax, P / 2, pleft,   vleft, domain=d1, bisectors=bisectors + [(pmedian, avg_vel, [-1, 0])], i=2*i,   depth=depth+1)
+    r = partitioning(ax, P / 2, pright, vright, domain=d2, bisectors=bisectors + [(pmedian, avg_vel, [1])],     i=2*i+1, depth=depth+1)
 
     return l + r
 

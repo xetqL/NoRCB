@@ -7,54 +7,49 @@ def create_domain(minx, miny, maxx, maxy):
     p2 = sg.Point2(maxx, miny)
     p3 = sg.Point2(maxx, maxy)
     p4 = sg.Point2(minx, maxy)
-    corners = [p4, p3, p2, p1]
+    corners = [p1,p2,p3,p4]
     chull = sg.convex_hull.graham_andrew(corners)
     pseg = zip(corners, rotate(corners, 1))
     segments = []
     for b, e in pseg:
         segments.append(sg.Segment2(b, e))
-    return segments
+
+    return sg.Polygon(corners)
 
 from copy import deepcopy
 if __name__ == '__main__':
-    domain = create_domain(-10, -10, 10, 10)
+    domain = create_domain(-2, -2, 2, 2)
 #
 
-    PE = 8
+    PE = 2
     N  = 8192
 
     rcb_imbalance   = []
     norcb_imbalance = []
 
-    __points     = uniform_circle(N, R=1)
-    bias         = np.zeros_like(__points)
+    __points     = np.zeros((N, 2))
+    __points[:int(N/2), :] = uniform_circle(int(N/2), cx=1,cy=1, R=0.5)
+    __points[int(N / 2):, :] = uniform_circle(int(N / 2), cx=-1, cy=0, R=0.5)
+    bias         = np.zeros((int(N/2), 2))
+    bias[:, 0]   = np.random.rand(int(N/2)) - 0.5
+    bias[:, 1]   = np.random.rand(int(N/2)) - 0.5
 
-    bias[:, 0]   = np.random.rand(N) * 2.
-    bias[:, 1]   = np.random.rand(N) - 0.5
+    velocities   = np.random.rand(N, 2) - .5 #expansion_velocity(__points)
+    velocities[:int(N/2), :] = np.random.rand(int(N/2), 2) + bias
+    velocities[int(N/2):, :] = np.random.rand(int(N/2), 2)
 
-    velocities   = expansion_velocity(__points)
     average_vel  = np.mean(velocities, axis=0)
 
     rcb_points   = deepcopy(__points)
     norcb_points = deepcopy(__points)
-    f, ax        = plt.subplots(nrows=3, ncols=2)
 
-    ax[0][0].set_xlim((-4, 6))
-    ax[0][0].set_ylim((-4, 6))
-
-    ax[0][1].set_xlim((-4, 6))
-    ax[0][1].set_ylim((-4, 6))
-
-    ax[1][0].set_xlim((-4, 6))
-    ax[1][0].set_ylim((-4, 6))
-
-    ax[1][1].set_xlim((-4, 6))
-    ax[1][1].set_ylim((-4, 6))
-    plt.figure()
     rcb   = partitioning_rcb(None, PE, rcb_points,    velocities, i=1, depth=0)
-    norcb =     partitioning(None, PE, norcb_points,  velocities, domain=domain, i=1, depth=0)
+    plt.figure()
+    ax = plt.gca()
+    norcb =     partitioning(ax, PE, norcb_points,  velocities, domain=domain, i=1, depth=0)
     plt.show()
     p0bis = norcb[0][0]
+
 #     intersections = []
 #     for i, bis1 in enumerate(p0bis):
 #         intersections = intersections + find_intersections_with_bisectors(bis1, p0bis[i+1:])
