@@ -3,6 +3,7 @@ from .math import *
 from .show import *
 import skgeom as sg
 from skgeom.draw import draw
+from numba import jit
 
 
 def unique(l, eq):
@@ -43,7 +44,6 @@ def select_bisection(s1, s2, vec, pmedian, p):
 
 VERY_SMALL = 1e-12
 def split_domain(polygon, pmedian, v):
-
     segments = list(polygon.edges)
     p = sg.Point2(*pmedian)
 
@@ -98,7 +98,7 @@ def vel2(v):
     return point2(v)
 
 
-def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
+def partitioning(ax, P, points, velocities, domain, i=0, depth=0):
     N = len(points)
     width = np.amax(points, axis=0) - np.amin(points, axis=0)
 
@@ -106,11 +106,11 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
     avg_vel = get_average_velocity(velocities, axis=np.argmin(width))
 
     if N <= 1 or P <= 1:
-        for e in domain.edges:
-            draw(e)
         if ax:
+            for e in domain.edges:
+                draw(e)
             show_points(ax, points, s=0.5)
-        return [(bisectors, i - 2**depth)]
+        return [(domain, i - 2**depth)]
 
     theta = get_angle(avg_vel, origin)
 
@@ -118,7 +118,7 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
     R  = get_rotation_matrix( theta)
     mR = get_rotation_matrix(-theta)
 
-    avg_vel = (np.dot(mR, np.abs(np.dot(R, avg_vel))))
+    #avg_vel = (np.dot(mR, np.abs(np.dot(R, avg_vel))))
     avg_vel = avg_vel / np.linalg.norm(avg_vel)
 
     # Define resulting zero array B.
@@ -130,13 +130,7 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
 
     rmedian = np.median(rpoints[:, 0])
     pmedian = np.dot(mR, [rmedian, 1.0])
-    #plt.figure()
-    #for p in points:
-    #    draw(sg.Point2(*p), s=1)
-    #for e in domain.edges:
-    #    draw(e)
-    #plt.show()
-    # partition
+
     lpart_mask = np.where(rpoints[:, 0] <= rmedian)
     rpart_mask = np.where(rpoints[:, 0] > rmedian)
 
@@ -152,8 +146,8 @@ def partitioning(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
 
     d1, d2 = split_domain(domain, pmedian, avg_vel)
 
-    l = partitioning(ax, P / 2, pleft,   vleft, domain=d1, bisectors=bisectors + [(pmedian, avg_vel, [-1, 0])], i=2*i,   depth=depth+1)
-    r = partitioning(ax, P / 2, pright, vright, domain=d2, bisectors=bisectors + [(pmedian, avg_vel, [1])],     i=2*i+1, depth=depth+1)
+    l = partitioning(ax, P / 2, pleft,   vleft, domain=d1, i=2*i,   depth=depth+1)
+    r = partitioning(ax, P / 2, pright, vright, domain=d2,     i=2*i+1, depth=depth+1)
 
     return l + r
 
@@ -165,7 +159,19 @@ def eval_partition(struct, points):
     return workloads
 
 
-def partitioning_rcb(ax, P, points, velocities, bisectors=[], i=0, depth=0):
+def count_inside(polygon, points):
+    inside = [1 for p in points if polygon.oriented_side(sg.Point2(*p)) != sg.Sign.NEGATIVE]
+    return sum(inside)
+
+
+def eval(struct, points):
+    workloads = np.zeros(len(struct))
+    for domain, i in struct:
+        workloads[i] = count_inside(domain, points)
+    return workloads
+
+
+def partitioning_rcb(ax, P, points, velocities, domain, bisectors=[], i=0, depth=0):
     N = len(points)
 
     width = np.amax(points, axis=0) - np.amin(points, axis=0)
@@ -175,17 +181,15 @@ def partitioning_rcb(ax, P, points, velocities, bisectors=[], i=0, depth=0):
     avg_vel[np.argmin(width)] = 1
 
     if N <= 1 or P <= 1:
-        if ax:
-            show_points(ax, points, s=0.5)
-        return [(bisectors, i - 2**depth)]
+        return [(domain, i - 2**depth)]
 
     theta = get_angle(avg_vel, origin)
 
     # rotate
-    R = get_rotation_matrix(theta)
+    R  = get_rotation_matrix( theta)
     mR = get_rotation_matrix(-theta)
 
-    avg_vel = (np.dot(mR, np.abs(np.dot(R, avg_vel))))
+    #avg_vel = (np.dot(mR, np.abs(np.dot(R, avg_vel))))
     avg_vel = avg_vel / np.linalg.norm(avg_vel)
 
     # Define resulting zero array B.
@@ -202,17 +206,15 @@ def partitioning_rcb(ax, P, points, velocities, bisectors=[], i=0, depth=0):
     lpart_mask = np.where(rpoints[:, 0] <= rmedian)
     rpart_mask = np.where(rpoints[:, 0] > rmedian)
 
-    pleft = points[lpart_mask]
-    vleft = velocities[lpart_mask]
-    sl = sign(side(np.tile(avg_vel, (len(pleft), 1)), pleft - pmedian))
-    assert np.all(np.isin(sl, [-1, 0]))
+    pleft  = points[lpart_mask]
+    vleft  = velocities[lpart_mask]
 
     pright = points[rpart_mask]
     vright = velocities[rpart_mask]
-    sr = sign(side(np.tile(avg_vel, (len(pright), 1)), pright - pmedian))
-    assert np.all(np.isin(sr, [1]))
 
-    l = partitioning_rcb(ax, P / 2, pleft, vleft,   bisectors=bisectors + [(pmedian, avg_vel, [-1, 0])], i=2*i, depth=depth+1)
-    r = partitioning_rcb(ax, P / 2, pright, vright, bisectors=bisectors + [(pmedian, avg_vel, [1])], i=2*i+1, depth=depth+1)
+    d1, d2 = split_domain(domain, pmedian, avg_vel)
+
+    l = partitioning_rcb(ax, P / 2, pleft,   vleft, domain=d1, i=2*i,   depth=depth+1)
+    r = partitioning_rcb(ax, P / 2, pright, vright, domain=d2, i=2*i+1, depth=depth+1)
 
     return l + r

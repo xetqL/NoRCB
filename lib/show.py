@@ -1,14 +1,17 @@
 import matplotlib.pyplot as plt
 from .utils import *
 from .math import *
+from skgeom.draw import draw
 
 
 def show_partitioned_points(ax, struct, points):
     colors = get_colors(len(struct))
-    for bisectors, i in struct:
-        who = who_satisfy_all_bisectors(bisectors, points)
-        c   = [colors[i]] * len(points[who])
-        show_points(ax, points=points[who], c=c, s=0.5)
+    c = get_polygon_id(struct, points)
+    c = [colors[x] for x in c]
+    show_points(ax, points=points, c=c, s=0.1)
+    for p, i in struct:
+        for e in p.edges:
+            ax.plot([e.source().x(), e.target().x()], [e.source().y(), e.target().y()], c='b', linewidth=0.1)
 
 
 def show_points(ax, points, **kwargs):

@@ -36,6 +36,7 @@ def uniform_circle(num_samples, cx=0, cy=0, R=1):
     theta2 = 2 * np.pi * np.random.rand(num_samples, 1)
     p[:, 0] = (r2 * np.cos(theta2)).flatten() + cx
     p[:, 1] = (r2 * np.sin(theta2)).flatten() + cy
+
     return p
 
 
