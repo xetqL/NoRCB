@@ -1,0 +1,9 @@
+/snap/clion/137/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/xetql/projects/cpp/NoRCB
+-- Found Boost: /usr/lib64/cmake/Boost-1.72.0/BoostConfig.cmake (found suitable version "1.72.0", minimum required is "1.48")  
+-- Boost include dirs: /usr/include
+-- Boost libraries:    
+-- Found Boost: /usr/lib64/cmake/Boost-1.72.0/BoostConfig.cmake (found version "1.72.0")  
+/home/xetql/projects/cpp/NoRCB/src/main.cpp/home/xetql/projects/cpp/NoRCB/src/norcb.cpp
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/xetql/projects/cpp/NoRCB/cmake-build-debug

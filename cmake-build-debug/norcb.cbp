@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="norcb"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\usr\local\;CMake Files\..\..\..\..\..\usr\local\lib\;CMake Files\..\..\..\..\..\usr\local\lib\cmake\;CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\;CMake Files\..\..\..\..\..\usr\lib64\;CMake Files\..\..\..\..\..\usr\lib64\cmake\;CMake Files\..\..\..\..\..\usr\lib64\cmake\Boost-1.72.0\;CMake Files\..\..\..\..\..\usr\lib64\cmake\boost_headers-1.72.0\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="norcb">
+				<Option output="/home/xetql/projects/cpp/NoRCB/cmake-build-debug/norcb" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DCGAL_USE_GMPXX=1"/>
+					<Add option="-DCGAL_NOT_HEADER_ONLY=1"/>
+					<Add option="-DBOOST_ALL_NO_LIB"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0/x86_64-pc-linux-gnu"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 norcb"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="norcb/fast">
+				<Option output="/home/xetql/projects/cpp/NoRCB/cmake-build-debug/norcb" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DCGAL_USE_GMPXX=1"/>
+					<Add option="-DCGAL_NOT_HEADER_ONLY=1"/>
+					<Add option="-DBOOST_ALL_NO_LIB"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0/x86_64-pc-linux-gnu"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/../../../../include/c++/10.2.0/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/10.2.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 norcb/fast"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/xetql/projects/cpp/NoRCB/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/src/main.cpp">
+			<Option target="norcb"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/src/norcb.cpp">
+			<Option target="norcb"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGALConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGALConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGALExports-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGALExports.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGALLibConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_Common.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_CreateSingleSourceCGALProgram.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_Macros.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_SetupBoost.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_TweakFindBoost.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_VersionUtils.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_add_test.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_enable_end_of_configuration_hook.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/local/lib/cmake/CGAL/CGAL_target_use_TBB.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\CGAL\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/lib64/cmake/Boost-1.72.0/BoostConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\lib64\cmake\Boost-1.72.0\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/lib64/cmake/Boost-1.72.0/BoostConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\lib64\cmake\Boost-1.72.0\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/lib64/cmake/boost_headers-1.72.0/boost_headers-config-version.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\lib64\cmake\boost_headers-1.72.0\"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/../../../../../usr/lib64/cmake/boost_headers-1.72.0/boost_headers-config.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\lib64\cmake\boost_headers-1.72.0\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

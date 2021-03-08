@@ -1,0 +1,3 @@
+/home/xetql/projects/cpp/NoRCB/CMakeFiles/rebuild_cache.dir
+/home/xetql/projects/cpp/NoRCB/CMakeFiles/edit_cache.dir
+/home/xetql/projects/cpp/NoRCB/CMakeFiles/norcb.dir
