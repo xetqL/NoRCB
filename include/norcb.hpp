@@ -28,7 +28,9 @@ using Real    = float;
 struct NoRCB {};
 
 Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy);
-std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Point2& median, const Vector2& vec);
+
+std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Vector2& vec, const Point2& median);
+
 NoRCB partition(Integer P, const std::vector<Point2>&, const Polygon2& domain);
 
 #endif //NORCB_NORCB_HPP
