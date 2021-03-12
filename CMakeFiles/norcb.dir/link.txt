@@ -1,1 +1,1 @@
-/usr/bin/c++  -O3 -DNDEBUG   CMakeFiles/norcb.dir/src/main.cpp.o CMakeFiles/norcb.dir/src/norcb.cpp.o  -o norcb  /usr/lib/libmpfr.so /usr/lib/libgmp.so 
+/usr/bin/c++  -g -O0 -g   CMakeFiles/norcb.dir/src/main.cpp.o CMakeFiles/norcb.dir/src/norcb.cpp.o  -o norcb  /usr/lib/libmpfr.so /usr/lib/libgmp.so 

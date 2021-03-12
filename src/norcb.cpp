@@ -7,7 +7,7 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/ch_graham_andrew.h>
 #include <boost/optional/optional_io.hpp>
-
+namespace norcb {
 std::array<std::array<double, 2>, 2> get_rotation_matrix(double theta) {
     std::array<std::array<double, 2>, 2> rotate{};
     rotate[0][0] = std::cos(theta);
@@ -88,22 +88,20 @@ int sign(double x) {
 // dot = np.dot(v, origin)
 // det = np.linalg.det([v, origin])
 // return np.arctan2(det, dot)
-
-
-// def get_average_velocity(velocities, axis):
-// v = np.copy(velocities)
-// R = get_rotation_matrix(np.pi)
-// # print(np.inner(R, v))
-// msk = np.where(v[:, axis] >= 0)
-// v[msk] = np.inner(R, v[msk]).T
-// return np.mean(v, axis=0)
-
 Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis){
     const auto size = vx.size();
-    auto R = get_rotation_matrix(M_PI);
     std::vector<double>& target = !axis ? vx : vy;
     for(unsigned i = 0; i < size; ++i){
-        target[i] = target[i] >= 0 ? -target[i] : target[i];
+        target[i] = -std::abs(target[i]);
+    }
+    return Vector2(std::accumulate(vx.begin(), vx.end(), 0.)/size,
+                   std::accumulate(vy.begin(), vy.end(), 0.)/size);
+}
+Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis){
+    const auto size = vx.size();
+    std::vector<double>& target = !axis ? vx : vy;
+    for(unsigned i = 0; i < size; ++i){
+        target[i] = -std::abs(target[i]);
     }
     return Vector2(std::accumulate(vx.begin(), vx.end(), 0.)/size,
                    std::accumulate(vy.begin(), vy.end(), 0.)/size);
@@ -133,7 +131,8 @@ std::pair<double, double> rotate(const std::array<std::array<double, 2>, 2>& mat
 
 void rotate(const std::array<std::array<double, 2>, 2>& matrix, std::vector<double>& x, std::vector<double>& y){
     const auto size = x.size();
-    std::vector<double> rx(size, 0), ry(size, 0);
+    assert(x.size() == y.size());
+    std::vector<double> rx(x.size(), 0.), ry(y.size(), 0.);
     double rxi, ryi;
 #pragma GCC ivdep
     for(unsigned i = 0; i < size; ++i) {
@@ -158,10 +157,13 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Vector2
     Ray2 pray(median,  vec);
     Ray2 nray(median, -vec);
 
-    std::vector<Point2> intersections{};
+    std::vector<Point2> intersections {};
+    /* iterate over polygon edges to find intersections with separating line */
     for(auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit){
         auto s = *eit;
+        // Compute intersection with *positive* ray
         auto inter = CGAL::intersection(s, pray);
+        // if we find an intersection, then add the intersection point to the list of intersections
         if (inter.has_value())
             intersections.push_back(boost::get<Point2>(inter.value()));
         inter = CGAL::intersection(s, nray);
@@ -169,17 +171,20 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Vector2
             intersections.push_back(boost::get<Point2>(inter.value()));
     }
 
+    // remove duplicates
     auto last = distinct(intersections.begin(), intersections.end(), P2Comp {});
     intersections.erase(last, intersections.end());
 
     std::vector<Point2> b1(intersections.begin(), intersections.end()), b2(intersections.begin(), intersections.end());
+
+    // add to left or right
     for(auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
         Segment2 s = *eit;
         add_to_bisection(b1, b2, vec, median, s.source());
         add_to_bisection(b1, b2, vec, median, s.target());
     }
 
-    std::vector<Point2> chull1, chull2;
+    std::vector<Point2> chull1{}, chull2{};
 
     CGAL::ch_graham_andrew(b1.begin(), b1.end(), std::back_inserter(chull1));
     CGAL::ch_graham_andrew(b2.begin(), b2.end(), std::back_inserter(chull2));
@@ -189,60 +194,76 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Vector2
 
     return {poly1, poly2};
 }
+template<class T>
+std::ostream &operator<<(std::ostream &os, const std::vector<T> &v) {
+    std::for_each(v.begin(), v.end()-1, [&os](auto& x){ os << x << ","; });
+    os << *(v.end()-1) << std::endl;
+    return os;
+}
 
-NoRCB partition(Integer P, std::vector<double>& x,  std::vector<double>& y,
-                           std::vector<double>& vx, const std::vector<double>& vy,
+namespace seq {
+std::vector<std::tuple<Polygon2,
+    std::vector<double>, std::vector<double>,
+    std::vector<double>, std::vector<double>>> partition(Integer P, std::vector<double>& x, std::vector<double>& y,
+                           std::vector<double>& vx, std::vector<double>& vy,
                            const Polygon2& domain) {
-    const auto size = x.size();
     std::vector<std::tuple<Polygon2,
         std::vector<double>, std::vector<double>,
-        std::vector<double>, std::vector<double>>> partitions;
-    partitions.emplace_back(domain, x, y, vx, vy);
+        std::vector<double>, std::vector<double>>> partitions {};
+
+    partitions.emplace_back(domain, std::move(x), std::move(y), std::move(vx), std::move(vy));
+    std::cout << x.size() << std::endl;
     while(P > 1) {
         decltype(partitions) bisected_parts{};
-        for(auto& partition : partitions){
+        for(auto& partition : partitions) {
             auto& [domain, x, y, vx, vy] = partition;
-            auto [minx, maxx] = std::minmax(x.begin(), x.end());
-            auto [miny, maxy] = std::minmax(x.begin(), x.end());
+            const auto part_in_subdomain = x.size();
 
-            unsigned target_axis;
+            const double minx = *std::min_element(x.cbegin(), x.cend());
+            const double maxx = *std::max_element(x.cbegin(), x.cend());
+            const double miny = *std::min_element(y.cbegin(), y.cend());
+            const double maxy = *std::max_element(y.cbegin(), y.cend());
 
-            if((maxx-minx) > (maxy-miny)){
-                target_axis = 0;
-            } else {
-                target_axis = 1;
-            }
+            const unsigned target_axis = ((maxx-minx) > (maxy-miny)) ? 0 : 1;
 
-            Vector2 origin(0., 1.);
+            const Vector2 origin(0., 1.);
+
             auto avg_vel = compute_average_velocity(vx, vy, target_axis);
 
-            auto theta         = get_angle(avg_vel, origin);
-            auto clockwise     = get_rotation_matrix(theta);
-            auto anticlockwise = get_rotation_matrix(-theta);
+            const auto theta         = get_angle(avg_vel, origin);
+            const auto clockwise     = get_rotation_matrix(theta);
+            const auto anticlockwise = get_rotation_matrix(-theta);
 
             rotate(clockwise, x, y);
-
-            avg_vel = Vector2(
+            avg_vel = Vector2 (
                 clockwise[0][0] * avg_vel.x() + clockwise[0][1]*avg_vel.y(),
                 clockwise[1][0] * avg_vel.x() + clockwise[1][1]*avg_vel.y()
             );
 
-            double norm = std::sqrt(avg_vel.x()*avg_vel.x() + avg_vel.y()*avg_vel.y());
+            const double norm = std::sqrt(avg_vel.x()*avg_vel.x() + avg_vel.y()*avg_vel.y());
             avg_vel = avg_vel / norm;
 
             double median;
             {
                 std::vector<double> rx(x.begin(), x.end());
-                std::nth_element(rx.begin(), rx.begin() + rx.size() / 2, rx.end());
-                median = *(rx.begin() + rx.size() / 2);
+                unsigned midIdx = (rx.size() / 2);
+                std::nth_element(rx.begin(), (rx.begin() + midIdx), rx.end());
+                double a = *(rx.begin() + midIdx);
+                if(rx.size() % 2){
+                    median = a;
+                } else {
+                    std::nth_element(rx.begin(), (rx.begin() + (midIdx-1)), rx.end());
+                    median = (a + *(rx.begin() + (midIdx - 1))) / 2;
+                }
             }
 
-            auto c = std::count_if(x.begin(), x.end(), [median](auto v){return v <= median;});
+            const auto c = std::count_if(x.begin(), x.end(), [median](auto v){return v <= median;});
 
-            std::vector<double> lx(c), ly(c), rx(size-c), ry(size-c);
-            std::vector<double> lvx(c), lvy(c), rvx(size-c), rvy(size-c);
+            std::vector<double> lx(c),   ly(c), rx(part_in_subdomain-c),  ry(part_in_subdomain-c);
+            std::vector<double> lvx(c), lvy(c), rvx(part_in_subdomain-c), rvy(part_in_subdomain-c);
+
             unsigned l = 0, r = 0;
-            for(unsigned i = 0; i < size; ++i) {
+            for(unsigned i = 0; i < part_in_subdomain; ++i) {
                 if(x[i] <= median) {
                     lx[l]  = x[i];
                     ly[l]  = y[i];
@@ -250,25 +271,39 @@ NoRCB partition(Integer P, std::vector<double>& x,  std::vector<double>& y,
                     lvy[l] = vy[i];
                     l++;
                 } else {
-                    rx[l]  = x[i];
-                    ry[l]  = y[i];
-                    rvx[l] = vx[i];
-                    rvy[l] = vy[i];
+                    rx[r]  =  x[i];
+                    ry[r]  =  y[i];
+                    rvx[r] = vx[i];
+                    rvy[r] = vy[i];
                     r++;
                 }
             }
-            auto [pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
-            Point2 pmedian(pmedx, pmedy);
 
             rotate(anticlockwise, lx, ly);
+
+            const auto [pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
+
+            const Point2 pmedian(pmedx, pmedy);
+
             rotate(anticlockwise, rx, ry);
-            auto [lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+
+            const auto [lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+
             bisected_parts.emplace_back(lpoly, lx, ly, lvx, lvy);
             bisected_parts.emplace_back(rpoly, rx, ry, rvx, rvy);
+
         }
         P /= 2;
         partitions = bisected_parts;
     }
 
-    return NoRCB();
+    return partitions;
+}
+
+}
+
+namespace par {
+
+}
+
 }

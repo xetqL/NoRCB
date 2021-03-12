@@ -25,12 +25,26 @@ using Ray2 = CGAL::Ray_2<K>;
 using Integer = unsigned;
 using Real    = float;
 
-struct NoRCB {};
+namespace norcb {
 
+struct NoRCB {
+    friend std::ostream &operator<<(std::ostream &os, const NoRCB &rcb);
+};
 Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy);
 
 std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2& poly, const Vector2& vec, const Point2& median);
-
-NoRCB partition(Integer P, const std::vector<Point2>&, const Polygon2& domain);
-
+namespace seq {
+std::vector<std::tuple<Polygon2,
+std::vector<double>, std::vector<double>,
+std::vector<double>, std::vector<double>>> partition(Integer P, std::vector<double>& x, std::vector<double>& y,
+                                                     std::vector<double>& vx, std::vector<double>& vy,
+                                                             const Polygon2& domain);
+}
+namespace par {
+std::tuple<Polygon2, std::vector<double>, std::vector<double>, std::vector<double>, std::vector<double>>
+partition(Integer P, const std::vector<double>& x, const std::vector<double>& y,
+          const std::vector<double>& vx, const std::vector<double>& vy,
+          const Polygon2& domain);
+}
+}
 #endif //NORCB_NORCB_HPP

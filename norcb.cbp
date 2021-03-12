@@ -46,6 +46,7 @@
 				<Compiler>
 					<Add option="-DBOOST_ALL_NO_LIB"/>
 					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/useful-algorithms/include"/>
 					<Add directory="/home/xetql/miniconda3/include"/>
 				</Compiler>
 				<MakeCommands>
@@ -64,6 +65,7 @@
 				<Compiler>
 					<Add option="-DBOOST_ALL_NO_LIB"/>
 					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/useful-algorithms/include"/>
 					<Add directory="/home/xetql/miniconda3/include"/>
 				</Compiler>
 				<MakeCommands>
