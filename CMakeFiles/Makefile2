@@ -55,10 +55,10 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake
+CMAKE_COMMAND = /var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake
 
 # The command to remove a file.
-RM = /var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake -E rm -f
+RM = /var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
@@ -73,6 +73,7 @@ CMAKE_BINARY_DIR = /home/xetql/projects/cpp/NoRCB
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
+all: CMakeFiles/libnorcb.dir/all
 all: CMakeFiles/norcb.dir/all
 
 .PHONY : all
@@ -83,9 +84,37 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
+clean: CMakeFiles/libnorcb.dir/clean
 clean: CMakeFiles/norcb.dir/clean
 
 .PHONY : clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/libnorcb.dir
+
+# All Build rule for target.
+CMakeFiles/libnorcb.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xetql/projects/cpp/NoRCB/CMakeFiles --progress-num=1,2,3,4 "Built target libnorcb"
+.PHONY : CMakeFiles/libnorcb.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/libnorcb.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xetql/projects/cpp/NoRCB/CMakeFiles 4
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/libnorcb.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xetql/projects/cpp/NoRCB/CMakeFiles 0
+.PHONY : CMakeFiles/libnorcb.dir/rule
+
+# Convenience name for target.
+libnorcb: CMakeFiles/libnorcb.dir/rule
+
+.PHONY : libnorcb
+
+# clean rule for target.
+CMakeFiles/libnorcb.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/clean
+.PHONY : CMakeFiles/libnorcb.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/norcb.dir
@@ -94,12 +123,12 @@ clean: CMakeFiles/norcb.dir/clean
 CMakeFiles/norcb.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xetql/projects/cpp/NoRCB/CMakeFiles --progress-num=1,2,3 "Built target norcb"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xetql/projects/cpp/NoRCB/CMakeFiles --progress-num=5,6,7,8 "Built target norcb"
 .PHONY : CMakeFiles/norcb.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/norcb.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/xetql/projects/cpp/NoRCB/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xetql/projects/cpp/NoRCB/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/norcb.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/xetql/projects/cpp/NoRCB/CMakeFiles 0
 .PHONY : CMakeFiles/norcb.dir/rule

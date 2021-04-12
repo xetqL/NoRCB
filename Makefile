@@ -59,10 +59,10 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake
+CMAKE_COMMAND = /var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake
 
 # The command to remove a file.
-RM = /var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake -E rm -f
+RM = /var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
@@ -79,7 +79,7 @@ CMAKE_BINARY_DIR = /home/xetql/projects/cpp/NoRCB
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+	/var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
 .PHONY : rebuild_cache
 
 # Special rule for the target rebuild_cache
@@ -90,7 +90,7 @@ rebuild_cache/fast: rebuild_cache
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
-	/var/lib/snapd/snap/clion/139/bin/cmake/linux/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
+	/var/lib/snapd/snap/clion/145/bin/cmake/linux/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
 .PHONY : edit_cache
 
 # Special rule for the target edit_cache
@@ -131,6 +131,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named libnorcb
+
+# Build rule for target.
+libnorcb: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libnorcb
+.PHONY : libnorcb
+
+# fast build rule for target.
+libnorcb/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/build
+.PHONY : libnorcb/fast
+
+#=============================================================================
 # Target rules for targets named norcb
 
 # Build rule for target.
@@ -143,12 +156,43 @@ norcb/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/build
 .PHONY : norcb/fast
 
+src/geom/utils.o: src/geom/utils.cpp.o
+
+.PHONY : src/geom/utils.o
+
+# target to build an object file
+src/geom/utils.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.o
+.PHONY : src/geom/utils.cpp.o
+
+src/geom/utils.i: src/geom/utils.cpp.i
+
+.PHONY : src/geom/utils.i
+
+# target to preprocess a source file
+src/geom/utils.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.i
+.PHONY : src/geom/utils.cpp.i
+
+src/geom/utils.s: src/geom/utils.cpp.s
+
+.PHONY : src/geom/utils.s
+
+# target to generate assembly for a file
+src/geom/utils.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.s
+.PHONY : src/geom/utils.cpp.s
+
 src/main.o: src/main.cpp.o
 
 .PHONY : src/main.o
 
 # target to build an object file
 src/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.o
 .PHONY : src/main.cpp.o
 
@@ -158,6 +202,7 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
@@ -167,6 +212,7 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
@@ -176,6 +222,7 @@ src/norcb.o: src/norcb.cpp.o
 
 # target to build an object file
 src/norcb.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.o
 .PHONY : src/norcb.cpp.o
 
@@ -185,6 +232,7 @@ src/norcb.i: src/norcb.cpp.i
 
 # target to preprocess a source file
 src/norcb.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.i
 .PHONY : src/norcb.cpp.i
 
@@ -194,6 +242,7 @@ src/norcb.s: src/norcb.cpp.s
 
 # target to generate assembly for a file
 src/norcb.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.s
 .PHONY : src/norcb.cpp.s
 
@@ -205,7 +254,11 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... libnorcb"
 	@echo "... norcb"
+	@echo "... src/geom/utils.o"
+	@echo "... src/geom/utils.i"
+	@echo "... src/geom/utils.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

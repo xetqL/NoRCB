@@ -37,6 +37,44 @@
 					<DistClean command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
+			<Target title="libnorcb">
+				<Option output="/home/xetql/projects/cpp/NoRCB/liblibnorcb.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DBOOST_ALL_NO_LIB"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/useful-algorithms/include"/>
+					<Add directory="/home/xetql/miniconda3/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 libnorcb"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="libnorcb/fast">
+				<Option output="/home/xetql/projects/cpp/NoRCB/liblibnorcb.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/xetql/projects/cpp/NoRCB"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DBOOST_ALL_NO_LIB"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/include"/>
+					<Add directory="/home/xetql/projects/cpp/NoRCB/useful-algorithms/include"/>
+					<Add directory="/home/xetql/miniconda3/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 libnorcb/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/xetql/projects/cpp/NoRCB/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
 			<Target title="norcb">
 				<Option output="/home/xetql/projects/cpp/NoRCB/norcb" prefix_auto="0" extension_auto="0"/>
 				<Option working_dir="/home/xetql/projects/cpp/NoRCB"/>
@@ -76,10 +114,19 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/include/algorithm.hpp">
+			<Option target="norcb"/>
+		</Unit>
+		<Unit filename="/home/xetql/projects/cpp/NoRCB/src/geom/utils.cpp">
+			<Option target="libnorcb"/>
+			<Option target="norcb"/>
+		</Unit>
 		<Unit filename="/home/xetql/projects/cpp/NoRCB/src/main.cpp">
+			<Option target="libnorcb"/>
 			<Option target="norcb"/>
 		</Unit>
 		<Unit filename="/home/xetql/projects/cpp/NoRCB/src/norcb.cpp">
+			<Option target="libnorcb"/>
 			<Option target="norcb"/>
 		</Unit>
 		<Unit filename="/home/xetql/projects/cpp/NoRCB/CMakeLists.txt">

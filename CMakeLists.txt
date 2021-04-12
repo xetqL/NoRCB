@@ -4,11 +4,11 @@
 cmake_minimum_required(VERSION 3.1...3.15)
 
 project( norcb )
-
 set(CMAKE_CXX_STANDARD 17)
+
 # CGAL and its components
 find_package( CGAL QUIET COMPONENTS  )
-set(CMAKE_BUILD_TYPE Debug)
+
 if ( NOT CGAL_FOUND )
 
   message(STATUS "This project requires the CGAL library, and will not be compiled.")
@@ -28,25 +28,42 @@ if ( NOT Boost_FOUND )
 
 endif()
 
-# include for local directory
-include_directories(include)
-include_directories(useful-algorithms/include)
+find_package(MPI REQUIRED)
 
-file(GLOB SRC src/*)
+# include for local directory
+include_directories(include useful-algorithms/include ${MPI_INCLUDE_PATH})
+
+file(GLOB_RECURSE SRC src/*)
 # include for local package
 
-message(${SRC})
 # Creating entries for target: norcb
 # ############################
 
 #if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
-set(CMAKE_CXX_FLAGS "-g -O0")
+#set(CMAKE_CXX_FLAGS "-g -O0")
 #endif ()
 
-add_executable( norcb ${SRC})
+add_executable( norcb ${SRC} include/algorithm.hpp)
+add_library(libnorcb ${SRC})
+
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(norcb PROPERTIES
+          COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+  set_target_properties(libnorcb PROPERTIES
+          COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+
+if(MPI_LINK_FLAGS)
+  set_target_properties(norcb PROPERTIES
+          LINK_FLAGS "${MPI_LINK_FLAGS}")
+  set_target_properties(libnorcb PROPERTIES
+          LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
 
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS norcb )
+add_to_cached_list( CGAL_EXECUTABLE_TARGETS libnorcb )
 
 # Link the executable to CGAL and third-party libraries
-target_link_libraries(norcb PRIVATE CGAL::CGAL )
+target_link_libraries(norcb PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
+target_link_libraries(libnorcb PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
 

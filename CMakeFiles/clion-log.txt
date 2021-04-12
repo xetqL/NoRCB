@@ -1,4 +1,4 @@
-/snap/clion/139/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/xetql/projects/cpp/NoRCB
+/snap/clion/145/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/xetql/projects/cpp/NoRCB
 -- Using header-only CGAL
 -- Targetting Unix Makefiles
 -- Using /usr/bin/c++ compiler.
@@ -12,7 +12,6 @@
 -- Found Boost 1.70.0 at /home/xetql/miniconda3/lib/cmake/Boost-1.70.0
 --   Requested configuration: QUIET
 -- Found Boost: /home/xetql/miniconda3/lib/cmake/Boost-1.70.0/BoostConfig.cmake (found version "1.70.0")  
-/home/xetql/projects/cpp/NoRCB/src/main.cpp/home/xetql/projects/cpp/NoRCB/src/norcb.cpp
 CMake Warning at /home/xetql/miniconda3/lib/cmake/CGAL/CGAL_enable_end_of_configuration_hook.cmake:99 (message):
   =======================================================================
 
