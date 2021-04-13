@@ -24,7 +24,7 @@ Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy,
 
 std::vector<std::tuple<Polygon2,
         std::vector<double>, std::vector<double>,
-        std::vector<double>, std::vector<double>>> partition(Integer P, std::vector<double> &x, std::vector<double> &y,
+        std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double> &x, std::vector<double> &y,
                                                              std::vector<double> &vx, std::vector<double> &vy,
                                                              const Polygon2 &domain) {
     std::vector<std::tuple<Polygon2,
@@ -135,7 +135,7 @@ Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy,
 }
 std::vector<std::tuple<Polygon2,
     std::vector<double>, std::vector<double>,
-    std::vector<double>, std::vector<double>>> partition(Integer P,
+    std::vector<double>, std::vector<double>>> partition(unsigned P,
      std::vector<double> &x,  std::vector<double> &y,
      std::vector<double> &vx, std::vector<double> &vy,
      const Polygon2 &domain, MPI_Comm comm) {

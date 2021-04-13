@@ -16,15 +16,6 @@
 
 #include <mpi.h>
 
-using Integer = unsigned;
-using Real    = float;
-
-template<class T> std::ostream &operator<<(std::ostream &os, const std::vector<T> &v) {
-    std::for_each(v.begin(), v.end() - 1, [&os](auto &x) { os << x << ","; });
-    os << *(v.end() - 1) << std::endl;
-    return os;
-}
-
 namespace norcb {
 namespace{
 template<class ReduceStrategy>
@@ -123,7 +114,7 @@ namespace seq {
 namespace{
 std::vector<std::tuple<Polygon2,
 std::vector<double>, std::vector<double>,
-std::vector<double>, std::vector<double>>> partition(Integer P, std::vector<double>& x, std::vector<double>& y,
+std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
                                                      std::vector<double>& vx, std::vector<double>& vy,
                                                              const Polygon2& domain);
 }
@@ -180,13 +171,13 @@ Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, 
 }
 std::vector<std::tuple<Polygon2,
         std::vector<double>, std::vector<double>,
-        std::vector<double>, std::vector<double>>> partition(Integer P, std::vector<double>& x, std::vector<double>& y,
+        std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
                                                              std::vector<double>& vx, std::vector<double>& vy,
                                                              const Polygon2& domain, MPI_Comm comm);
 
 template<class ForwardIt>
 std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt, ForwardIt, ForwardIt, ForwardIt>>
-partition(Integer P,
+partition(unsigned P,
           ForwardIt x_begin, ForwardIt x_end,
           ForwardIt y_begin, ForwardIt vx_begin, ForwardIt vy_begin,
           const Polygon2 &domain, MPI_Comm comm) {
@@ -276,7 +267,7 @@ partition(Integer P,
 
 template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
 std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>>
-partition(Integer P, ForwardIt el_begin, ForwardIt el_end,
+partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
           const Polygon2 &domain, MPI_Datatype datatype, MPI_Comm comm,
           GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
 
