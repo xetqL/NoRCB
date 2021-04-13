@@ -1,2 +1,0 @@
-/usr/bin/ar qc libnorcb.a  CMakeFiles/norcb.dir/src/geom/utils.cpp.o CMakeFiles/norcb.dir/src/main.cpp.o CMakeFiles/norcb.dir/src/norcb.cpp.o
-/usr/bin/ranlib libnorcb.a
