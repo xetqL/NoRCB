@@ -77,6 +77,6 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/libnorcb.dir/DependInfo.cmake"
   "CMakeFiles/norcb.dir/DependInfo.cmake"
+  "CMakeFiles/norcb_test.dir/DependInfo.cmake"
   )

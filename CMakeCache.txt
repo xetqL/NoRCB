@@ -351,7 +351,7 @@ Boost_DEBUG-ADVANCED:INTERNAL=1
 Boost_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CGAL_Boost_USE_STATIC_LIBS
 CGAL_Boost_USE_STATIC_LIBS-ADVANCED:INTERNAL=1
-CGAL_EXECUTABLE_TARGETS:INTERNAL=norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;libnorcb;norcb;libnorcb
+CGAL_EXECUTABLE_TARGETS:INTERNAL=norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;norcb;libnorcb;norcb;libnorcb;norcb;libnorcb;norcb;libnorcb;norcb_test;libnorcb;norcb_test;norcb
 //CGAL library is configured to use GMP
 CGAL_USE_GMP:INTERNAL=TRUE
 //CGAL library is configured to use MPFR

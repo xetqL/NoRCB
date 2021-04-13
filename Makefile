@@ -131,19 +131,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named libnorcb
-
-# Build rule for target.
-libnorcb: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 libnorcb
-.PHONY : libnorcb
-
-# fast build rule for target.
-libnorcb/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/build
-.PHONY : libnorcb/fast
-
-#=============================================================================
 # Target rules for targets named norcb
 
 # Build rule for target.
@@ -156,14 +143,27 @@ norcb/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/build
 .PHONY : norcb/fast
 
+#=============================================================================
+# Target rules for targets named norcb_test
+
+# Build rule for target.
+norcb_test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 norcb_test
+.PHONY : norcb_test
+
+# fast build rule for target.
+norcb_test/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/build
+.PHONY : norcb_test/fast
+
 src/geom/utils.o: src/geom/utils.cpp.o
 
 .PHONY : src/geom/utils.o
 
 # target to build an object file
 src/geom/utils.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/geom/utils.cpp.o
 .PHONY : src/geom/utils.cpp.o
 
 src/geom/utils.i: src/geom/utils.cpp.i
@@ -172,8 +172,8 @@ src/geom/utils.i: src/geom/utils.cpp.i
 
 # target to preprocess a source file
 src/geom/utils.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/geom/utils.cpp.i
 .PHONY : src/geom/utils.cpp.i
 
 src/geom/utils.s: src/geom/utils.cpp.s
@@ -182,8 +182,8 @@ src/geom/utils.s: src/geom/utils.cpp.s
 
 # target to generate assembly for a file
 src/geom/utils.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/geom/utils.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/geom/utils.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/geom/utils.cpp.s
 .PHONY : src/geom/utils.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -192,8 +192,8 @@ src/main.o: src/main.cpp.o
 
 # target to build an object file
 src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/main.cpp.o
 .PHONY : src/main.cpp.o
 
 src/main.i: src/main.cpp.i
@@ -202,8 +202,8 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
 src/main.s: src/main.cpp.s
@@ -212,8 +212,8 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/main.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
 src/norcb.o: src/norcb.cpp.o
@@ -222,8 +222,8 @@ src/norcb.o: src/norcb.cpp.o
 
 # target to build an object file
 src/norcb.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/norcb.cpp.o
 .PHONY : src/norcb.cpp.o
 
 src/norcb.i: src/norcb.cpp.i
@@ -232,8 +232,8 @@ src/norcb.i: src/norcb.cpp.i
 
 # target to preprocess a source file
 src/norcb.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/norcb.cpp.i
 .PHONY : src/norcb.cpp.i
 
 src/norcb.s: src/norcb.cpp.s
@@ -242,8 +242,8 @@ src/norcb.s: src/norcb.cpp.s
 
 # target to generate assembly for a file
 src/norcb.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/libnorcb.dir/build.make CMakeFiles/libnorcb.dir/src/norcb.cpp.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb.dir/build.make CMakeFiles/norcb.dir/src/norcb.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/norcb_test.dir/build.make CMakeFiles/norcb_test.dir/src/norcb.cpp.s
 .PHONY : src/norcb.cpp.s
 
 # Help Target
@@ -254,8 +254,8 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... libnorcb"
 	@echo "... norcb"
+	@echo "... norcb_test"
 	@echo "... src/geom/utils.o"
 	@echo "... src/geom/utils.i"
 	@echo "... src/geom/utils.s"

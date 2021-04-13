@@ -43,27 +43,27 @@ file(GLOB_RECURSE SRC src/*)
 #set(CMAKE_CXX_FLAGS "-g -O0")
 #endif ()
 
-add_executable( norcb ${SRC} include/algorithm.hpp)
-add_library(libnorcb ${SRC})
+add_executable( norcb_test ${SRC} include/algorithm.hpp)
+add_library(norcb ${SRC})
 
 if(MPI_COMPILE_FLAGS)
-  set_target_properties(norcb PROPERTIES
+  set_target_properties(norcb_test PROPERTIES
           COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-  set_target_properties(libnorcb PROPERTIES
+  set_target_properties(norcb PROPERTIES
           COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
 if(MPI_LINK_FLAGS)
-  set_target_properties(norcb PROPERTIES
+  set_target_properties(norcb_test PROPERTIES
           LINK_FLAGS "${MPI_LINK_FLAGS}")
-  set_target_properties(libnorcb PROPERTIES
+  set_target_properties(norcb PROPERTIES
           LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
 
+add_to_cached_list( CGAL_EXECUTABLE_TARGETS norcb_test )
 add_to_cached_list( CGAL_EXECUTABLE_TARGETS norcb )
-add_to_cached_list( CGAL_EXECUTABLE_TARGETS libnorcb )
 
 # Link the executable to CGAL and third-party libraries
+target_link_libraries(norcb_test PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
 target_link_libraries(norcb PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
-target_link_libraries(libnorcb PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
 
