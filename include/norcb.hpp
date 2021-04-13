@@ -50,11 +50,16 @@ Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy,
 struct NoRCB {
     K trait {};
     int world_size, rank;
-
+    Polygon2 domain;
     std::vector<Polygon2> subdomains {};
     MPI_Comm comm;
 
-    NoRCB(std::vector<Polygon2> subdomains, MPI_Comm comm) : comm(comm), subdomains(std::move(subdomains)) {
+    NoRCB(Polygon2 domain, MPI_Comm comm) : domain(domain), comm(comm) {
+        MPI_Comm_size(comm, &world_size);
+        MPI_Comm_rank(comm, &rank);
+    }
+
+    NoRCB(Polygon2 domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
         MPI_Comm_size(comm, &world_size);
         MPI_Comm_rank(comm, &rank);
     }

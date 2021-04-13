@@ -7,7 +7,7 @@
 namespace norcb {
 
 NoRCB* allocate_from(NoRCB* from) {
-    return new NoRCB(from->subdomains, from->comm);
+    return new NoRCB(from->domain, from->subdomains, from->comm);
 }
 void destroy(NoRCB* lb) {
     delete lb;
