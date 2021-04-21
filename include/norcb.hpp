@@ -17,6 +17,16 @@
 #include <mpi.h>
 
 namespace norcb {
+template<class Real>
+Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy) {
+    Point2 p1(minx, miny), p2(maxx, miny), p3(maxx, maxy), p4(minx, maxy);
+    Polygon2 d;
+    d.push_back(p1);
+    d.push_back(p2);
+    d.push_back(p3);
+    d.push_back(p4);
+    return d;
+}
 namespace{
 template<class ReduceStrategy>
 Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, ReduceStrategy reduce) {
@@ -42,55 +52,107 @@ struct NoRCB {
     K trait {};
     int world_size, rank;
     Polygon2 domain;
-    std::vector<Polygon2> subdomains {};
+    std::vector<Polygon2> subdomains{};
     MPI_Comm comm;
 
-    NoRCB(Polygon2 domain, MPI_Comm comm) : domain(domain), comm(comm) {
+    NoRCB(const Polygon2& domain, MPI_Comm comm) : domain(domain), comm(comm) {
         MPI_Comm_size(comm, &world_size);
         MPI_Comm_rank(comm, &rank);
+        subdomains.resize(world_size);
     }
 
-    NoRCB(Polygon2 domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
+    NoRCB(const Polygon2& domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
         MPI_Comm_size(comm, &world_size);
         MPI_Comm_rank(comm, &rank);
     }
 
     template<class Real>
-    bool is_inside(Polygon2& domain, Real x, Real y) {
+    void get_owner(Real x, Real y, int* owner) {
         Point2 pt(x,y);
-        return CGAL::bounded_side_2(domain.vertices_begin(), domain.vertices_end(), pt, trait) != CGAL::ON_UNBOUNDED_SIDE;
-    }
-
-    template<class Real>
-    void get_owner(Real x, Real y, int* owner){
+/*
         for((*owner) = 0; (*owner) < world_size; (*owner)++){
-            if(is_inside(subdomains.at(*owner), x, y)) {
-                return;
-            }
+            const auto& subdomain = this->subdomains.at(*owner);
+            if(CGAL::bounded_side_2(subdomain.vertices_begin(), subdomain.vertices_end(), pt, trait ) != CGAL::ON_UNBOUNDED_SIDE) return;
         }
-        *owner = -1;
+*/
+
+        auto c = pt;
+        for((*owner) = 0; (*owner) < world_size; (*owner)++){
+            const auto& subdomain = this->subdomains.at(*owner);
+            int belongs = 1;
+            for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
+                Segment2 s(*beg);
+
+                const auto& a = s.source();
+                const auto& b = s.target();
+                const auto ab = b-a;
+                const auto ac = c-a;
+                auto cross = CGAL::to_double(ab.x()*ac.y() - ab.y()*ac.x());
+                const auto sign  = std::signbit(cross);
+                const auto is_on_boundary = std::fabs(cross) < 1e-10;
+                const auto side  = is_on_boundary || !sign;
+
+                belongs &= side;
+            }
+
+            if(belongs) return;
+        }
+
+        std::cout << std::fixed << std::setprecision(16);
+        par::pcout() << "ERROR WITH " << c << std::endl;
+        for((*owner) = 0; (*owner) < world_size; (*owner)++){
+            const auto& subdomain = this->subdomains.at(*owner);
+            int belongs = 1;
+            for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
+                Segment2 s(*beg);
+
+                auto a = s.source();
+                auto b = s.target();
+                auto ab = b-a;
+                auto ac = c-a;
+                auto cross = CGAL::to_double(ab.x()*ac.y() - ab.y()*ac.x());
+                auto sign  = std::signbit(cross);
+                auto is_on_boundary = std::fabs(cross) < 1e-16;
+                auto side  = is_on_boundary || !sign;
+
+                par::pcout() << *owner << " " << subdomain << " " << cross << " " << side << " " << is_on_boundary << " " << sign << std::endl;
+
+            }
+
+        }
+
+
+        throw std::logic_error(fmt("Point(%f, %f) belongs to no one", x, y));
     }
 
     template<class Real>
     void get_intersecting_domains(Real x1, Real x2, Real y1, Real y2, Real z1, Real z2, int* PEs, int* num_found) {
-        Point2 x1y1 = Point2(x1, y1),
-               x1y2 = Point2(x1, y2),
-               x2y2 = Point2(x2, x2),
-               x2y1 = Point2(x2, y1);
-
-        Polygon2 interaction_square;
-        interaction_square.push_back(x1y1);
-        interaction_square.push_back(x1y2);
-        interaction_square.push_back(x2y2);
-        interaction_square.push_back(x2y1);
-
+        Polygon2 interaction_square = init_domain(x1, y1, x2, y2);
         *num_found = 0;
         for(auto PE = 0; PE < world_size; ++PE){
             const Polygon2& subdomain = subdomains.at(PE);
-            if(CGAL::do_intersect(interaction_square, subdomain)){
+            if(CGAL::do_intersect(subdomain, interaction_square)){
                 PEs[*num_found] = PE;
                 *num_found += 1;
             }
+        }
+    }
+
+    template<class Real>
+    void get_neighbors(Real x, Real y, Real z, double rc, int* PEs, int* num_found) const {
+        Point2 p(x, y);
+        const double sqrc = rc*rc;
+        *num_found = 0;
+        int i = 0;
+        for(const Polygon2& poly : subdomains) {
+            for(auto beg = poly.edges_begin(); beg != poly.edges_end(); beg++) {
+                if(CGAL::squared_distance(*beg, p) < sqrc) {
+                    PEs[*num_found] = i;
+                    *num_found = *num_found + 1;
+                    break;
+                }
+            }
+            i++;
         }
     }
 
@@ -98,17 +160,6 @@ struct NoRCB {
 
 NoRCB* allocate_from(NoRCB* from);
 void destroy(NoRCB* lb);
-
-template<class Real>
-Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy) {
-    Point2 p1(minx, miny), p2(maxx, miny), p3(maxx, maxy), p4(minx, maxy);
-    Polygon2 d;
-    d.push_back(p1);
-    d.push_back(p2);
-    d.push_back(p3);
-    d.push_back(p4);
-    return d;
-}
 
 namespace seq {
 namespace{
@@ -264,7 +315,6 @@ partition(unsigned P,
     return partitions;
 }
 
-
 template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
 std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>>
 partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
@@ -300,20 +350,26 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             const Vector2 origin(0., 1.);
             auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
 
-            const auto theta         = get_angle(avg_vel, origin);
+            auto theta         = get_angle(avg_vel, origin);
+
+            //auto radian15deg = to_radian(30.0);
+            //theta = std::floor(theta / radian15deg) * radian15deg;
+
+            const auto theta_degree  = 180.0 * theta / M_PI;
+
             const auto clockwise     = get_rotation_matrix(theta);
             const auto anticlockwise = get_rotation_matrix(-theta);
 
             rotate(clockwise, el_begin, el_end, getPosition);
 
-            const auto norm = std::sqrt(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y());
+            const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
             avg_vel = avg_vel / norm;
 
             Real median;
             {
                 std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
-                auto midIdx = size / 2-1;
+                auto midIdx = size / 2 - 1;
                 auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [getPosition](const auto& a, const auto& b){
                     auto posa = getPosition(&a);
                     auto posb = getPosition(&b);

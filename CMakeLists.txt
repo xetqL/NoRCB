@@ -9,6 +9,16 @@ set(CMAKE_CXX_STANDARD 17)
 # CGAL and its components
 find_package( CGAL QUIET COMPONENTS  )
 
+if("${CMAKE_BUILD_TYPE}" STREQUAL Sanitize)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+  message("Flags for build type \"${CMAKE_BUILD_TYPE}\" are: ${CMAKE_CXX_FLAGS}")
+endif()
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL Profile)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -p ${CMAKE_CXX_FLAGS_DEBUG} -frounding-math")
+  message("Flags for build type \"${CMAKE_BUILD_TYPE}\" are: ${CMAKE_CXX_FLAGS}")
+endif()
+
 if ( NOT CGAL_FOUND )
 
   message(STATUS "This project requires the CGAL library, and will not be compiled.")
@@ -34,6 +44,8 @@ find_package(MPI REQUIRED)
 include_directories(include useful-algorithms/include ${MPI_INCLUDE_PATH})
 
 file(GLOB_RECURSE SRC src/*)
+list(REMOVE_ITEM SRC src/main.cpp)
+
 # include for local package
 
 # Creating entries for target: norcb
@@ -43,8 +55,8 @@ file(GLOB_RECURSE SRC src/*)
 #set(CMAKE_CXX_FLAGS "-g -O0")
 #endif ()
 
-add_executable( norcb_test ${SRC} include/algorithm.hpp)
-add_library(norcb ${SRC})
+add_executable( norcb_test src/main.cpp ${SRC})
+add_library(norcb src/norcb.cpp src/geom/utils.cpp)
 
 if(MPI_COMPILE_FLAGS)
   set_target_properties(norcb_test PROPERTIES

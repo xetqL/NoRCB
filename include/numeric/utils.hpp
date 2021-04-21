@@ -4,6 +4,12 @@
 
 #ifndef NORCB_UTILS_HPP
 #define NORCB_UTILS_HPP
+
+template<class T>
+constexpr T pi(){
+    return T(3.14);
+}
+
 template<class T>
 typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type almost_equal(T x, T y, int ulp) {
     // the machine epsilon has to be scaled to the magnitude of the values used
@@ -14,8 +20,11 @@ typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type almost_
 }
 
 template<class Real>
-int sign(Real x) {
-    return x < static_cast<Real>(0) ? static_cast<Real>(-1) : (almost_equal(x, static_cast<Real>(0), 2) ? static_cast<Real>(0) : static_cast<Real>(1));
+int sign(Real x, int ulp = 2) {
+    //return x < static_cast<Real>(0) ? static_cast<Real>(-1) : (almost_equal(x, static_cast<Real>(0), 2) ? static_cast<Real>(0) : static_cast<Real>(1));
+    return (almost_equal(x, static_cast<Real>(0), ulp) ? static_cast<Real>(0) :
+            x < static_cast<Real>(0) ? static_cast<Real>(-1) : static_cast<Real>(1));
+
 }
 
 #endif //NORCB_UTILS_HPP
