@@ -59,7 +59,7 @@ std::vector<std::tuple<Polygon2,
                     clockwise[1][0] * avg_vel.x() + clockwise[1][1] * avg_vel.y()
             );
 
-            const double norm = std::sqrt(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y());
+            const double norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
             avg_vel = avg_vel / norm;
 
             double median;
@@ -168,7 +168,7 @@ std::vector<std::tuple<Polygon2,
 
             rotate(clockwise, x, y);
 
-            const double norm = std::sqrt(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y());
+            const double norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
             avg_vel = avg_vel / norm;
 
             double median;
