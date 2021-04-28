@@ -20,22 +20,16 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL Profile)
 endif()
 
 if ( NOT CGAL_FOUND )
-
   message(STATUS "This project requires the CGAL library, and will not be compiled.")
   return()  
-
 endif()
 
 
 # Boost and its components
 find_package( Boost )
-
 if ( NOT Boost_FOUND )
-
   message(STATUS "This project requires the Boost library, and will not be compiled.")
-
   return()  
-
 endif()
 
 find_package(MPI REQUIRED)
@@ -49,15 +43,11 @@ list(REMOVE_ITEM SRC src/main.cpp)
 add_library(norcb ${SRC})
 
 if(MPI_COMPILE_FLAGS)
-  set_target_properties(norcb_test PROPERTIES
-          COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
   set_target_properties(norcb PROPERTIES
           COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
 if(MPI_LINK_FLAGS)
-  set_target_properties(norcb_test PROPERTIES
-          LINK_FLAGS "${MPI_LINK_FLAGS}")
   set_target_properties(norcb PROPERTIES
           LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
