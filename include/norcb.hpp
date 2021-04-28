@@ -70,12 +70,13 @@ struct NoRCB {
     void get_owner(Real x, Real y, int* owner) {
         Point2 pt(x,y);
 
-        auto c = pt;
+        const auto c = pt;
         for((*owner) = 0; (*owner) < world_size; (*owner)++){
             const auto& subdomain = this->subdomains.at(*owner);
             int belongs = 1;
             for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
                 Segment2 s(*beg);
+
                 const auto& a = s.source();
                 const auto& b = s.target();
                 const auto ab = b-a;
@@ -90,8 +91,8 @@ struct NoRCB {
 
             if(belongs) return;
         }
-		*owner = -1;    	
-	}
+		*owner = -1;
+    }
 
     template<class Real>
     void get_intersecting_domains(Real x1, Real x2, Real y1, Real y2, Real z1, Real z2, int* PEs, int* num_found) {
@@ -123,6 +124,7 @@ struct NoRCB {
             i++;
         }
     }
+
 };
 
 NoRCB* allocate_from(NoRCB* from);
@@ -159,7 +161,6 @@ parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, ForwardI
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
-
     return Vector2(s[0] / size, s[1] / size);
 }
 
@@ -177,8 +178,8 @@ Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, 
         const auto rvx = R[0][0] * (velocity->at(0)) + R[0][1] * (velocity->at(1));
         const auto rvy = R[1][0] * (velocity->at(0)) + R[1][1] * (velocity->at(1));
 
-        s[0] += (position->at(target_axis)) >= 0 ? rvx : (velocity->at(0));
-        s[1] += (position->at(target_axis)) >= 0 ? rvy : (velocity->at(1));
+        s[0] += (velocity->at(target_axis)) >= 0 ? rvx : (velocity->at(0));
+        s[1] += (velocity->at(target_axis)) >= 0 ? rvy : (velocity->at(1));
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
@@ -295,7 +296,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
     unsigned npart = partitions.size();
     while (npart != P) {
         decltype(partitions) bisected_parts{};
-        for (auto &partition : partitions) {
+        for (auto& partition : partitions) {
             auto&[domain, el_begin, el_end] = partition;
             const unsigned elements_in_subdomain = std::distance(el_begin, el_end);
 
@@ -315,12 +316,11 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
 
             const Vector2 origin(0., 1.);
-
 			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
 
             auto theta         = get_angle(avg_vel, origin);
 
-            //auto radian15deg = to_radian(30.0);
+            //auto radian15deg = to_radian(15.0);
             //theta = std::floor(theta / radian15deg) * radian15deg;
 
             const auto theta_degree  = 180.0 * theta / M_PI;
@@ -374,9 +374,10 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const Point2 pmedian(pmedx, pmedy);
 
+            //rotate(anticlockwise, el_median, el_end, getPosition);
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
-
-            bisected_parts.emplace_back(lpoly, el_begin,  el_median);
+            
+			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
             bisected_parts.emplace_back(rpoly, el_median, el_end);
         }
 

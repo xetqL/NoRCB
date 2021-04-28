@@ -9,7 +9,7 @@
 #include <CGAL/Vector_2.h>
 #include <CGAL/Ray_2.h>
 #include <CGAL/iterator.h>
-
+#include <CGAL/ch_jarvis.h>
 // Kernels
 #include <CGAL/Cartesian.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
@@ -20,7 +20,7 @@
 
 #include <vector>
 #include <array>
-
+#include <cassert>
 #include "algorithm.hpp"
 #include "numeric/utils.hpp"
 
@@ -125,11 +125,9 @@ struct P2Comp {
 
 inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const Vector2 &vec, const Point2 &median) {
 
-    CGAL::Vector_2<ExactK> evec(vec.x(), vec.y());
-    CGAL::Point_2<ExactK > emedian(median.x(), median.y());
-
-    Ray2 pray(median, vec);
-    Ray2 nray(median, -vec);
+	CGAL::Vector_2<ExactK> evec(CGAL::to_double(vec.x()), CGAL::to_double(vec.y()));
+    
+	CGAL::Point_2<ExactK > emedian(CGAL::to_double(median.x()), CGAL::to_double(median.y()));
 
     CGAL::Line_2<ExactK> med(emedian, evec);
 
@@ -141,7 +139,8 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
                                   EPoint2(nonExactSegment.target().x(), nonExactSegment.target().y()));
 
         // Compute intersection with *positive* ray
-        auto inter = CGAL::intersection(s, med);
+    
+		auto inter = CGAL::intersection(s, med);
 
         // if we find an intersection, then add the intersection point to the list of intersections
         if (inter.has_value()) {
@@ -170,9 +169,8 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
     }
 
     std::vector<Point2> chull1{}, chull2{};
-
-    CGAL::ch_graham_andrew(b1.begin(), b1.end(), std::back_inserter(chull1));
-    CGAL::ch_graham_andrew(b2.begin(), b2.end(), std::back_inserter(chull2));
+    CGAL::ch_jarvis(b1.begin(), b1.end(), std::back_inserter(chull1));
+    CGAL::ch_jarvis(b2.begin(), b2.end(), std::back_inserter(chull2));
 
     Polygon2 poly1(chull1.begin(), chull1.end());
 
