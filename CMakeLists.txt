@@ -1,7 +1,7 @@
 # Created by the script cgal_create_CMakeLists
 # This is the CMake script for compiling a set of CGAL applications.
 
-cmake_minimum_required(VERSION 3.1...3.15)
+cmake_minimum_required(VERSION 3.15)
 
 project( norcb )
 set(CMAKE_CXX_STANDARD 17)
@@ -46,17 +46,7 @@ include_directories(include useful-algorithms/include ${MPI_INCLUDE_PATH})
 file(GLOB_RECURSE SRC src/*)
 list(REMOVE_ITEM SRC src/main.cpp)
 
-# include for local package
-
-# Creating entries for target: norcb
-# ############################
-
-#if (${CMAKE_BUILD_TYPE} EQUAL "Debug")
-#set(CMAKE_CXX_FLAGS "-g -O0")
-#endif ()
-
-add_executable( norcb_test src/main.cpp ${SRC})
-add_library(norcb src/norcb.cpp src/geom/utils.cpp)
+add_library(norcb ${SRC})
 
 if(MPI_COMPILE_FLAGS)
   set_target_properties(norcb_test PROPERTIES
@@ -72,10 +62,6 @@ if(MPI_LINK_FLAGS)
           LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
 
-add_to_cached_list( CGAL_EXECUTABLE_TARGETS norcb_test )
-add_to_cached_list( CGAL_EXECUTABLE_TARGETS norcb )
-
 # Link the executable to CGAL and third-party libraries
-target_link_libraries(norcb_test PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
-target_link_libraries(norcb PRIVATE CGAL::CGAL ${MPI_LIBRARIES})
+target_link_libraries(norcb PUBLIC CGAL::CGAL ${MPI_LIBRARIES})
 

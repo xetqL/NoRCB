@@ -69,12 +69,6 @@ struct NoRCB {
     template<class Real>
     void get_owner(Real x, Real y, int* owner) {
         Point2 pt(x,y);
-/*
-        for((*owner) = 0; (*owner) < world_size; (*owner)++){
-            const auto& subdomain = this->subdomains.at(*owner);
-            if(CGAL::bounded_side_2(subdomain.vertices_begin(), subdomain.vertices_end(), pt, trait ) != CGAL::ON_UNBOUNDED_SIDE) return;
-        }
-*/
 
         auto c = pt;
         for((*owner) = 0; (*owner) < world_size; (*owner)++){
@@ -82,7 +76,6 @@ struct NoRCB {
             int belongs = 1;
             for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
                 Segment2 s(*beg);
-
                 const auto& a = s.source();
                 const auto& b = s.target();
                 const auto ab = b-a;
@@ -97,33 +90,8 @@ struct NoRCB {
 
             if(belongs) return;
         }
-
-        std::cout << std::fixed << std::setprecision(16);
-        par::pcout() << "ERROR WITH " << c << std::endl;
-        for((*owner) = 0; (*owner) < world_size; (*owner)++){
-            const auto& subdomain = this->subdomains.at(*owner);
-            int belongs = 1;
-            for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
-                Segment2 s(*beg);
-
-                auto a = s.source();
-                auto b = s.target();
-                auto ab = b-a;
-                auto ac = c-a;
-                auto cross = CGAL::to_double(ab.x()*ac.y() - ab.y()*ac.x());
-                auto sign  = std::signbit(cross);
-                auto is_on_boundary = std::fabs(cross) < 1e-16;
-                auto side  = is_on_boundary || !sign;
-
-                par::pcout() << *owner << " " << subdomain << " " << cross << " " << side << " " << is_on_boundary << " " << sign << std::endl;
-
-            }
-
-        }
-
-
-        throw std::logic_error(fmt("Point(%f, %f) belongs to no one", x, y));
-    }
+		*owner = -1;    	
+	}
 
     template<class Real>
     void get_intersecting_domains(Real x1, Real x2, Real y1, Real y2, Real z1, Real z2, int* PEs, int* num_found) {
@@ -155,7 +123,6 @@ struct NoRCB {
             i++;
         }
     }
-
 };
 
 NoRCB* allocate_from(NoRCB* from);
@@ -348,7 +315,8 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
 
             const Vector2 origin(0., 1.);
-            auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
+
+			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
 
             auto theta         = get_angle(avg_vel, origin);
 
@@ -405,8 +373,6 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
 
             const Point2 pmedian(pmedx, pmedy);
-
-            //rotate(anticlockwise, el_median, el_end, getPosition);
 
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
 
