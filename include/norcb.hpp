@@ -155,8 +155,8 @@ parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, ForwardI
     for (unsigned i = 0; i < size; ++i) {
         const auto rvx = R[0][0] * (*(vx_begin + i)) + R[0][1] * (*(vy_begin + i));
         const auto rvy = R[1][0] * (*(vx_begin + i)) + R[1][1] * (*(vy_begin + i));
-        s[0] += (*(target_begin + i)) >= 0 ? rvx : (*(vx_begin + i));
-        s[1] += (*(target_begin + i)) >= 0 ? rvy : (*(vy_begin + i));
+        s[0] += (*(target_begin + i)) >= 0 ? -(*(vx_begin + i)) : (*(vx_begin + i));
+        s[1] += (*(target_begin + i)) >= 0 ? -(*(vy_begin + i)) : (*(vy_begin + i));
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, MPI_DOUBLE, MPI_SUM, comm);
@@ -164,22 +164,16 @@ parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, ForwardI
     return Vector2(s[0] / size, s[1] / size);
 }
 
-template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
+template<class Real, class ForwardIt, class GetVelocityFunc>
 Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned target_axis, MPI_Comm comm,
-                                          GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
+                                          GetVelocityFunc getVelocity) {
     auto size = std::distance(el_begin, el_end);
-    auto R = get_rotation_matrix(M_PI);
     std::array<Real, 2> s = {0., 0.};
 
     for (unsigned i = 0; i < size; ++i) {
-        auto position = getPosition(&(*(el_begin + i)));
-        auto velocity = getVelocity(&(*(el_begin + i)));
-
-        const auto rvx = R[0][0] * (velocity->at(0)) + R[0][1] * (velocity->at(1));
-        const auto rvy = R[1][0] * (velocity->at(0)) + R[1][1] * (velocity->at(1));
-
-        s[0] += (velocity->at(target_axis)) >= 0 ? rvx : (velocity->at(0));
-        s[1] += (velocity->at(target_axis)) >= 0 ? rvy : (velocity->at(1));
+        const auto velocity = getVelocity(&(*(el_begin + i)));
+        s[0] += (velocity->at(!target_axis)) >= 0 ? -velocity->at(0) : (velocity->at(0));
+        s[1] += (velocity->at(!target_axis)) >= 0 ? -velocity->at(1) : (velocity->at(1));
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
@@ -294,6 +288,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
     partitions.emplace_back(domain, el_begin, el_end);
 
     unsigned npart = partitions.size();
+
     while (npart != P) {
         decltype(partitions) bisected_parts{};
         for (auto& partition : partitions) {
@@ -316,12 +311,10 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
 
             const Vector2 origin(0., 1.);
-			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
+
+			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
 
             auto theta         = get_angle(avg_vel, origin);
-
-            //auto radian15deg = to_radian(15.0);
-            //theta = std::floor(theta / radian15deg) * radian15deg;
 
             const auto theta_degree  = 180.0 * theta / M_PI;
 
@@ -374,7 +367,6 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const Point2 pmedian(pmedx, pmedy);
 
-            //rotate(anticlockwise, el_median, el_end, getPosition);
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
             
 			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
