@@ -8,6 +8,7 @@
 #include <parallel/algorithm.hpp>
 
 #include "geom/utils.hpp"
+#include "../../yalbb/include/yalbb/math.hpp"
 
 #include <boost/optional/optional_io.hpp>
 
@@ -142,44 +143,58 @@ std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<dou
 
 namespace parallel {
 namespace {
-Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, MPI_Comm comm);
+Vector2 __compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, MPI_Comm comm);
 
 template<class ForwardIt>
 Vector2
-parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, ForwardIt vy_begin, bool axis, MPI_Comm comm) {
+__parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, ForwardIt vy_begin, bool axis, MPI_Comm comm) {
     auto size = std::distance(vx_begin, vx_end);
     auto R = get_rotation_matrix(M_PI);
     ForwardIt target_begin = !axis ? vx_begin : vy_begin;
     std::array<double, 2> s = {0., 0.};
 
     for (unsigned i = 0; i < size; ++i) {
-        const auto rvx = R[0][0] * (*(vx_begin + i)) + R[0][1] * (*(vy_begin + i));
-        const auto rvy = R[1][0] * (*(vx_begin + i)) + R[1][1] * (*(vy_begin + i));
-        s[0] += (*(target_begin + i)) >= 0 ? -(*(vx_begin + i)) : (*(vx_begin + i));
-        s[1] += (*(target_begin + i)) >= 0 ? -(*(vy_begin + i)) : (*(vy_begin + i));
+        s[0] += (*(target_begin + i)) < 0 ? -(*(vx_begin + i)) : (*(vx_begin + i));
+        s[1] += (*(target_begin + i)) < 0 ? -(*(vy_begin + i)) : (*(vy_begin + i));
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, MPI_DOUBLE, MPI_SUM, comm);
     MPI_Allreduce(MPI_IN_PLACE, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+
     return Vector2(s[0] / size, s[1] / size);
 }
 
 template<class Real, class ForwardIt, class GetVelocityFunc>
-Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned target_axis, MPI_Comm comm,
+Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
                                           GetVelocityFunc getVelocity) {
-    auto size = std::distance(el_begin, el_end);
-    std::array<Real, 2> s = {0., 0.};
 
-    for (unsigned i = 0; i < size; ++i) {
-        const auto velocity = getVelocity(&(*(el_begin + i)));
-        s[0] += (velocity->at(!target_axis)) >= 0 ? -velocity->at(0) : (velocity->at(0));
-        s[1] += (velocity->at(!target_axis)) >= 0 ? -velocity->at(1) : (velocity->at(1));
+    auto size = std::distance(el_begin, el_end);
+
+    std::array<Real, 2> s = {0., 0.};
+    auto folding_axis = ((longest_axis + 1) % 2);
+
+    auto mat = get_rotation_matrix(M_PI);
+
+    decltype(size) total_size;
+
+    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+
+    for (auto i = 0; i < size; ++i) {
+        auto velocity = *getVelocity(&(*(el_begin + i)));
+        velocity = vec::generic::normalize(velocity);
+        auto[rvx, rvy] = rotate(mat, velocity.at(0), velocity.at(1));
+        if(velocity.at(folding_axis) < 0){
+            s[0] += rvx / total_size;
+            s[1] += rvy / total_size;
+        } else {
+            s[0] += velocity.at(0)/total_size;//(velocity.at(folding_axis)) < 0 ? -velocity.at(0) : (velocity.at(0));
+            s[1] += velocity.at(1)/total_size;//(velocity.at(folding_axis)) < 0 ? -velocity.at(1) : (velocity.at(1));
+        }
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
-    MPI_Allreduce(MPI_IN_PLACE, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
 
-    return Vector2(s[0] / size, s[1] / size);
+    return Vector2(s[0], s[1]);
 }
 }
 std::vector<std::tuple<Polygon2,
@@ -205,6 +220,7 @@ partition(unsigned P,
         for (auto &partition : partitions) {
             auto&[domain, x_begin, x_end, y_begin, vx_begin, vy_begin] = partition;
             const unsigned elements_in_subdomain = std::distance(x_begin, x_end);
+
             const ForwardIt y_end  = y_begin  + elements_in_subdomain,
                       vx_end = vx_begin + elements_in_subdomain,
                       vy_end = vy_begin + elements_in_subdomain;
@@ -294,31 +310,30 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
         for (auto& partition : partitions) {
             auto&[domain, el_begin, el_end] = partition;
             const unsigned elements_in_subdomain = std::distance(el_begin, el_end);
+            std::array<Real, 2> min{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::max()};
+            std::array<Real, 2> max{std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::lowest()};
 
-            Real minx = std::numeric_limits<Real>::max(),
-                maxx = std::numeric_limits<Real>::lowest(),
-                miny = std::numeric_limits<Real>::max(),
-                maxy = std::numeric_limits<Real>::lowest();
-
-            std::for_each(el_begin, el_end, [&minx, &miny, &maxx, &maxy, getPosition] (const auto& e1) {
+            std::for_each(el_begin, el_end, [&min, &max, &getPosition] (const auto& e1) {
                 auto position = getPosition(&e1);
-                minx = std::min(position->at(0), minx);
-                maxx = std::max(position->at(0), maxx);
-                miny = std::min(position->at(1), miny);
-                maxy = std::max(position->at(1), maxy);
+                min.at(0) = std::min(position->at(0), min.at(0));
+                max.at(0) = std::max(position->at(0), max.at(0));
+                min.at(1) = std::min(position->at(1), min.at(1));
+                max.at(1) = std::max(position->at(1), max.at(1));
             });
 
-            const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
+            MPI_Allreduce(MPI_IN_PLACE, min.data(), min.size(), par::get_mpi_type<typename decltype(min)::value_type>(), MPI_MIN, comm);
+            MPI_Allreduce(MPI_IN_PLACE, max.data(), max.size(), par::get_mpi_type<typename decltype(max)::value_type>(),  MPI_MAX, comm);
+
+            const unsigned target_axis = (max.at(0) - min.at(0)) < (max.at(1) - min.at(1));
 
             const Vector2 origin(0., 1.);
 
 			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
 
-            auto theta         = get_angle(avg_vel, origin);
-
-            const auto theta_degree  = 180.0 * theta / M_PI;
+            auto theta   = get_angle(avg_vel, origin);
 
             const auto clockwise     = get_rotation_matrix(theta);
+
             const auto anticlockwise = get_rotation_matrix(-theta);
 
             rotate(clockwise, el_begin, el_end, getPosition);
@@ -331,11 +346,11 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
                 std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
                 auto midIdx = size / 2 - 1;
-                auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [getPosition](const auto& a, const auto& b){
+                auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [&getPosition](const auto& a, const auto& b){
                     auto posa = getPosition(&a);
                     auto posb = getPosition(&b);
                     return posa->at(0) < posb->at(0);
-                }, [getPosition](const auto& a, const auto& b){
+                }, [&getPosition](const auto& a, const auto& b){
                     auto posa = getPosition(&a);
                     auto posb = getPosition(&b);
                     return posa->at(0) == posb->at(0);
@@ -343,10 +358,11 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
                 median = getPosition(&el_median)->at(0);
             }
 
-            const auto c = std::count_if(el_begin, el_end, [getPosition, median](const auto& v) {
+            const auto c = std::count_if(el_begin, el_end, [&getPosition, &median](const auto& v) {
                 auto pos = getPosition(&v);
                 return pos->at(0) <= median;
             });
+
             ForwardIt el_median = el_begin + c;
 
             unsigned l = 0, r = 0, i = 0;
