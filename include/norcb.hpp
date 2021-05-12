@@ -355,10 +355,6 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
                     auto posa = getPosition(&a);
                     auto posb = getPosition(&b);
                     return posa->at(0) < posb->at(0);
-                }, [&getPosition](const auto& a, const auto& b){
-                    auto posa = getPosition(&a);
-                    auto posb = getPosition(&b);
-                    return posa->at(0) == posb->at(0);
                 });
                 median = getPosition(&el_median)->at(0);
             }
@@ -387,7 +383,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const Point2 pmedian(pmedx, pmedy);
 
-            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+            const auto[lpoly, rpoly] = bisect_polygon(domain, velx, vely, pmedian);
             
 			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
             bisected_parts.emplace_back(rpoly, el_median, el_end);

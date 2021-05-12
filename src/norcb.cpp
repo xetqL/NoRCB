@@ -12,7 +12,7 @@ NoRCB* allocate_from(NoRCB* from) {
 void destroy(NoRCB* lb) {
     delete lb;
 }
-
+/*
 namespace seq {
 namespace{
 Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis) {
@@ -120,9 +120,10 @@ std::vector<std::tuple<Polygon2,
 }
 
 }
-
+*/
 namespace parallel {
 namespace {
+/*
 Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, MPI_Comm comm) {
     return norcb::compute_average_velocity(std::move(vx), std::move(vy), axis, [comm](auto beg, auto end) {
         auto acc = std::accumulate(beg, end, 0.);
@@ -132,7 +133,9 @@ Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy,
         return std::make_tuple(acc, size);
     });
 }
+ */
 }
+/*
 std::vector<std::tuple<Polygon2,
     std::vector<double>, std::vector<double>,
     std::vector<double>, std::vector<double>>> partition(unsigned P,
@@ -222,6 +225,6 @@ std::vector<std::tuple<Polygon2,
 
     return partitions;
 }
-
+*/
 }
 }

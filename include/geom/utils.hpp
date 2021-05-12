@@ -34,7 +34,20 @@ using Point2   = CGAL::Point_2<K>;
 using EPoint2  = CGAL::Point_2<ExactK>;
 using Vector2  = CGAL::Vector_2<K>;
 using Ray2     = CGAL::Ray_2<K>;
-
+template<class Real>
+Real side(Real tx, Real ty, Real dx, Real dy) {
+    return dx * ty - dy * tx;
+}
+template<class Real>
+void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, Real vx, Real vy, const Point2 &pmed, const Point2 &p) {
+    auto median_to_p = p-pmed;
+    auto s = sign(CGAL::to_double(side(vx, vy, (Real) median_to_p.x(), (Real) median_to_p.y())));
+    if (s <= 0) {
+        b1.push_back(p);
+    } else {
+        b2.push_back(p);
+    }
+}
 inline auto get_angle(const Vector2 &v, const Vector2 &origin) {
     auto dot = v * origin;
     auto det = v.x() * origin.y() - v.y() * origin.x();
@@ -127,10 +140,10 @@ struct P2Comp {
         almost_equal(CGAL::to_double(p1.y()), CGAL::to_double(p2.y()), 2);
     }
 };
+template<class Real>
+std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real vy, const Point2 &median) {
 
-inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const Vector2 &vec, const Point2 &median) {
-
-	CGAL::Vector_2<ExactK> evec(CGAL::to_double(vec.x()), CGAL::to_double(vec.y()));
+	CGAL::Vector_2<ExactK> evec(vx, vy);
     
 	CGAL::Point_2<ExactK > emedian(CGAL::to_double(median.x()), CGAL::to_double(median.y()));
 
@@ -169,8 +182,8 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
     // add to left or right
     for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
         Segment2 s = *eit;
-        add_to_bisection(b1, b2, vec, median, s.source());
-        add_to_bisection(b1, b2, vec, median, s.target());
+        add_to_bisection(b1, b2, vx, vy, median, s.source());
+        add_to_bisection(b1, b2, vx, vy, median, s.target());
     }
 
     std::vector<Point2> chull1{}, chull2{};
