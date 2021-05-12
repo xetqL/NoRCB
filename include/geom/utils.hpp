@@ -41,7 +41,12 @@ inline auto get_angle(const Vector2 &v, const Vector2 &origin) {
     return std::atan2(CGAL::to_double(det), CGAL::to_double(dot));
 }
 
-
+template<class Real>
+inline auto get_angle(Real x1, Real y1, Real x2, Real y2) {
+    auto dot = x1*x2 + y1*y2;
+    auto det = x1 * y2 - y1 * x2;
+    return std::atan2(det, dot);
+}
 
 void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, const Vector2 &v, const Point2 &pmed, const Point2 &p);
 
@@ -169,6 +174,7 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
     }
 
     std::vector<Point2> chull1{}, chull2{};
+
     CGAL::ch_jarvis(b1.begin(), b1.end(), std::back_inserter(chull1));
     CGAL::ch_jarvis(b2.begin(), b2.end(), std::back_inserter(chull2));
 
