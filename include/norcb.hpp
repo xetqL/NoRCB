@@ -8,7 +8,6 @@
 #include <parallel/algorithm.hpp>
 
 #include "geom/utils.hpp"
-#include "../../yalbb/include/yalbb/math.hpp"
 
 #include <boost/optional/optional_io.hpp>
 
@@ -341,7 +340,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             velx /= norm;
             vely /= norm;
             END_TIMER(tavg_vel);
-            par::pcout() << "Time for computing average vector " << tavg_vel << std::endl;
+            //par::pcout() << "Time for computing average vector " << tavg_vel << std::endl;
 
             auto theta   = get_angle(velx, vely, 0.0, 1.0);
             const auto clockwise     = get_rotation_matrix(theta);
