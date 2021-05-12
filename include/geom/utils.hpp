@@ -140,6 +140,67 @@ struct P2Comp {
         almost_equal(CGAL::to_double(p1.y()), CGAL::to_double(p2.y()), 2);
     }
 };
+
+
+
+inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const Vector2& vec, const Point2 &median) {
+
+    CGAL::Vector_2<ExactK> evec(CGAL::to_double(vec.x()), CGAL::to_double(vec.y()));
+
+    CGAL::Point_2<ExactK > emedian(CGAL::to_double(median.x()), CGAL::to_double(median.y()));
+
+    CGAL::Line_2<ExactK> med(emedian, evec);
+
+    std::vector<Point2> intersections {};
+    /* iterate over polygon edges to find intersections with separating line with exact predicates...*/
+    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
+        auto nonExactSegment = *eit;
+        CGAL::Segment_2<ExactK> s(EPoint2(nonExactSegment.source().x(), nonExactSegment.source().y()),
+                                  EPoint2(nonExactSegment.target().x(), nonExactSegment.target().y()));
+
+        // Compute intersection with *positive* ray
+
+        auto inter = CGAL::intersection(s, med);
+
+        // if we find an intersection, then add the intersection point to the list of intersections
+        if (inter.has_value()) {
+            auto ep = boost::get<EPoint2>(inter.value());
+            Point2 p(CGAL::to_double(ep.x()), CGAL::to_double(ep.y()));
+            intersections.push_back(p);
+        }
+    }
+
+    // remove duplicates
+    auto last = distinct(intersections.begin(), intersections.end(), P2Comp{});
+    intersections.erase(last, intersections.end());
+
+    if(intersections.size() != 2) {
+        throw std::logic_error("A line intersects 2 polygon edges.");
+    }
+
+    std::vector<Point2> b1(intersections.begin(), intersections.end()),
+            b2(intersections.begin(), intersections.end());
+
+    // add to left or right
+    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
+        Segment2 s = *eit;
+        add_to_bisection(b1, b2, vec, median, s.source());
+        add_to_bisection(b1, b2, vec, median, s.target());
+    }
+
+    std::vector<Point2> chull1{}, chull2{};
+
+    CGAL::ch_jarvis(b1.begin(), b1.end(), std::back_inserter(chull1));
+    CGAL::ch_jarvis(b2.begin(), b2.end(), std::back_inserter(chull2));
+
+    Polygon2 poly1(chull1.begin(), chull1.end());
+
+    Polygon2 poly2(chull2.begin(), chull2.end());
+
+    return {poly1, poly2};
+}
+
+
 template<class Real>
 std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real vy, const Point2 &median) {
 

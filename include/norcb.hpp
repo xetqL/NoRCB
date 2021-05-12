@@ -16,110 +16,7 @@
 
 #include <mpi.h>
 
-#define START_TIMER(var)\
-double var = MPI_Wtime();
-
-#define RESTART_TIMER(v) \
-v = MPI_Wtime() - v;
-
-#define END_TIMER(var)\
-var = MPI_Wtime() - var;
-
 namespace norcb {
-std::vector<std::tuple<Polygon2,
-        std::vector<double>, std::vector<double>,
-        std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
-                                                             std::vector<double>& vx, std::vector<double>& vy,
-                                                             const Polygon2& domain, MPI_Comm comm);
-template<class ForwardIt>
-std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt, ForwardIt, ForwardIt, ForwardIt>>
-partition(unsigned P,
-          ForwardIt x_begin, ForwardIt x_end,
-          ForwardIt y_begin, ForwardIt vx_begin, ForwardIt vy_begin,
-          const Polygon2 &domain, MPI_Comm comm) {
-
-    std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt, ForwardIt, ForwardIt, ForwardIt>> partitions {};
-
-    partitions.emplace_back(domain, x_begin, x_end, y_begin, vx_begin, vy_begin);
-
-    unsigned npart = partitions.size();
-    while (npart != P) {
-        decltype(partitions) bisected_parts{};
-        for (auto &partition : partitions) {
-            auto&[domain, x_begin, x_end, y_begin, vx_begin, vy_begin] = partition;
-            const unsigned elements_in_subdomain = std::distance(x_begin, x_end);
-
-            const ForwardIt y_end  = y_begin  + elements_in_subdomain,
-                    vx_end = vx_begin + elements_in_subdomain,
-                    vy_end = vy_begin + elements_in_subdomain;
-
-            const double minx = *std::min_element(x_begin, x_end);
-            const double maxx = *std::max_element(x_begin, x_end);
-            const double miny = *std::min_element(y_begin, y_end);
-            const double maxy = *std::max_element(y_begin, y_end);
-
-            const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
-
-            const Vector2 origin(0., 1.);
-            auto avg_vel = parallel_compute_average_velocity(vx_begin, vx_end, vy_begin, target_axis, comm);
-
-            const auto theta         = get_angle(avg_vel, origin);
-            const auto clockwise     = get_rotation_matrix(theta);
-            const auto anticlockwise = get_rotation_matrix(-theta);
-
-            rotate(clockwise, x_begin, x_end, y_begin);
-
-            const double norm = std::sqrt(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y());
-            avg_vel = avg_vel / norm;
-
-            double median;
-            {
-                std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
-                MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
-                auto midIdx = size / 2;
-                median = par::find_nth(x_begin, x_end, midIdx, comm);
-            }
-
-            const auto c = std::count_if(x_begin, x_end, [median](auto v) { return v <= median; });
-
-            ForwardIt x_median  = x_begin  + c;
-            ForwardIt y_median  = y_begin  + c;
-            ForwardIt vx_median = vx_begin + c;
-            ForwardIt vy_median = vy_begin + c;
-
-            unsigned l = 0, r = 0, i = 0;
-            while(l < c) {
-                if (*(x_begin + i) <= median) {
-                    l++;
-                }
-                if (*(x_begin + i) > median) {
-                    std::iter_swap((x_begin +  l),  (x_begin + c + r));
-                    std::iter_swap((y_begin +  l),  (y_begin + c + r));
-                    std::iter_swap((vx_begin + l), (vx_begin + c + r));
-                    std::iter_swap((vy_begin + l), (vy_begin + c + r));
-                    r++;
-                }
-            }
-
-            rotate(anticlockwise, x_begin, x_median, y_begin);
-
-            const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
-
-            const Point2 pmedian(pmedx, pmedy);
-
-            rotate(anticlockwise, x_median, x_end, y_median);
-
-            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
-
-            bisected_parts.emplace_back(lpoly, x_begin,  x_median, y_begin,  vx_begin,  vy_begin);
-            bisected_parts.emplace_back(rpoly, x_median, x_end,    y_median, vx_median, vy_median);
-        }
-        npart *= 2;
-        partitions = bisected_parts;
-    }
-
-    return partitions;
-}
 template<class Real>
 Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy) {
     Point2 p1(minx, miny), p2(maxx, miny), p3(maxx, maxy), p4(minx, maxy);
@@ -267,7 +164,7 @@ __parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, Forwar
 }
 
 template<class Real, class ForwardIt, class GetVelocityFunc>
-std::pair<Real, Real> parallel_compute_average_velocity(unsigned total_size, ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
+Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
                                           GetVelocityFunc getVelocity) {
 
     auto size = std::distance(el_begin, el_end);
@@ -275,11 +172,16 @@ std::pair<Real, Real> parallel_compute_average_velocity(unsigned total_size, For
     std::array<Real, 2> s = {0., 0.};
     auto folding_axis = ((longest_axis + 1) % 2);
 
-    auto mat = get_rotation_matrix(M_PI);
+    decltype(size) total_size;
 
+    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+
+    // O(n/p)
     for (auto i = 0; i < size; ++i) {
         auto velocity = *getVelocity(&(*(el_begin + i)));
-        if(velocity.at(folding_axis) < 0){
+        const auto d2 = velocity[0]*velocity[0] + velocity[1]*velocity[1];
+        velocity[0] /= d2; velocity[1] /= d2;
+        if(velocity.at(folding_axis) < 0) {
             s[0] += -velocity.at(0);
             s[1] += -velocity.at(1);
         } else {
@@ -290,11 +192,104 @@ std::pair<Real, Real> parallel_compute_average_velocity(unsigned total_size, For
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
 
-    return std::make_pair<Real>(s[0] / total_size, s[1] / total_size);
+    return Vector2(s[0] / total_size, s[1] / total_size);
 }
-
 }
+std::vector<std::tuple<Polygon2,
+        std::vector<double>, std::vector<double>,
+        std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
+                                                             std::vector<double>& vx, std::vector<double>& vy,
+                                                             const Polygon2& domain, MPI_Comm comm);
 
+template<class ForwardIt>
+std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt, ForwardIt, ForwardIt, ForwardIt>>
+partition(unsigned P,
+          ForwardIt x_begin, ForwardIt x_end,
+          ForwardIt y_begin, ForwardIt vx_begin, ForwardIt vy_begin,
+          const Polygon2 &domain, MPI_Comm comm) {
+
+    std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt, ForwardIt, ForwardIt, ForwardIt>> partitions {};
+
+    partitions.emplace_back(domain, x_begin, x_end, y_begin, vx_begin, vy_begin);
+
+    unsigned npart = partitions.size();
+    while (npart != P) {
+        decltype(partitions) bisected_parts{};
+        for (auto &partition : partitions) {
+            auto&[domain, x_begin, x_end, y_begin, vx_begin, vy_begin] = partition;
+            const unsigned elements_in_subdomain = std::distance(x_begin, x_end);
+
+            const ForwardIt y_end  = y_begin  + elements_in_subdomain,
+                      vx_end = vx_begin + elements_in_subdomain,
+                      vy_end = vy_begin + elements_in_subdomain;
+
+            const double minx = *std::min_element(x_begin, x_end);
+            const double maxx = *std::max_element(x_begin, x_end);
+            const double miny = *std::min_element(y_begin, y_end);
+            const double maxy = *std::max_element(y_begin, y_end);
+
+            const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
+
+            const Vector2 origin(0., 1.);
+            auto avg_vel = parallel_compute_average_velocity(vx_begin, vx_end, vy_begin, target_axis, comm);
+
+            const auto theta         = get_angle(avg_vel, origin);
+            const auto clockwise     = get_rotation_matrix(theta);
+            const auto anticlockwise = get_rotation_matrix(-theta);
+
+            rotate(clockwise, x_begin, x_end, y_begin);
+
+            const double norm = std::sqrt(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y());
+            avg_vel = avg_vel / norm;
+
+            double median;
+            {
+                std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
+                MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+                auto midIdx = size / 2;
+                median = par::find_nth(x_begin, x_end, midIdx, comm);
+            }
+
+            const auto c = std::count_if(x_begin, x_end, [median](auto v) { return v <= median; });
+
+            ForwardIt x_median  = x_begin  + c;
+            ForwardIt y_median  = y_begin  + c;
+            ForwardIt vx_median = vx_begin + c;
+            ForwardIt vy_median = vy_begin + c;
+
+            unsigned l = 0, r = 0, i = 0;
+            while(l < c) {
+                if (*(x_begin + i) <= median) {
+                    l++;
+                }
+                if (*(x_begin + i) > median) {
+                    std::iter_swap((x_begin +  l),  (x_begin + c + r));
+                    std::iter_swap((y_begin +  l),  (y_begin + c + r));
+                    std::iter_swap((vx_begin + l), (vx_begin + c + r));
+                    std::iter_swap((vy_begin + l), (vy_begin + c + r));
+                    r++;
+                }
+            }
+
+            rotate(anticlockwise, x_begin, x_median, y_begin);
+
+            const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
+
+            const Point2 pmedian(pmedx, pmedy);
+
+            rotate(anticlockwise, x_median, x_end, y_median);
+
+            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+
+            bisected_parts.emplace_back(lpoly, x_begin,  x_median, y_begin,  vx_begin,  vy_begin);
+            bisected_parts.emplace_back(rpoly, x_median, x_end,    y_median, vx_median, vy_median);
+        }
+        npart *= 2;
+        partitions = bisected_parts;
+    }
+
+    return partitions;
+}
 
 template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
 std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>>
@@ -312,15 +307,10 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
         decltype(partitions) bisected_parts{};
         for (auto& partition : partitions) {
             auto&[domain, el_begin, el_end] = partition;
-
             const unsigned elements_in_subdomain = std::distance(el_begin, el_end);
-            std::remove_const_t<decltype(elements_in_subdomain)> total_size {0};
-            MPI_Allreduce(&elements_in_subdomain, &total_size, 1, par::get_mpi_type<decltype(total_size)>(), MPI_SUM, comm);
-
             std::array<Real, 2> min{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::max()};
             std::array<Real, 2> max{std::numeric_limits<Real>::lowest(), std::numeric_limits<Real>::lowest()};
 
-            START_TIMER(tavg_vel);
             std::for_each(el_begin, el_end, [&min, &max, &getPosition] (const auto& e1) {
                 auto position = getPosition(&e1);
                 min.at(0) = std::min(position->at(0), min.at(0));
@@ -334,22 +324,26 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const unsigned target_axis = (max.at(0) - min.at(0)) < (max.at(1) - min.at(1));
 
-			auto[velx, vely] = parallel_compute_average_velocity<Real>(total_size, el_begin, el_end,
-                                                          target_axis, comm, getVelocity);
-            const auto norm = std::sqrt((velx * velx + vely * vely));
-            velx /= norm;
-            vely /= norm;
-            END_TIMER(tavg_vel);
-            //par::pcout() << "Time for computing average vector " << tavg_vel << std::endl;
+            const Vector2 origin(0., 1.);
 
-            auto theta   = get_angle(velx, vely, 0.0, 1.0);
+			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
+
+            auto theta   = get_angle(avg_vel, origin);
+
             const auto clockwise     = get_rotation_matrix(theta);
+
             const auto anticlockwise = get_rotation_matrix(-theta);
+
             rotate(clockwise, el_begin, el_end, getPosition);
+
+            const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
+            avg_vel = avg_vel / norm;
 
             Real median;
             {
-                auto midIdx = total_size / 2 - 1;
+                std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
+                MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+                auto midIdx = size / 2 - 1;
                 auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [&getPosition](const auto& a, const auto& b){
                     auto posa = getPosition(&a);
                     auto posb = getPosition(&b);
@@ -364,6 +358,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
             });
 
             ForwardIt el_median = el_begin + c;
+
             unsigned l = 0, r = 0, i = 0;
             while(l < c) {
                 auto position = getPosition(&(*(el_begin + i)));
@@ -382,7 +377,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const Point2 pmedian(pmedx, pmedy);
 
-            const auto[lpoly, rpoly] = bisect_polygon(domain, velx, vely, pmedian);
+            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
             
 			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
             bisected_parts.emplace_back(rpoly, el_median, el_end);
