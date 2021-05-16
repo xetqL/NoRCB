@@ -375,9 +375,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
 
-            const Point2 pmedian(pmedx, pmedy);
-
-            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel.x(), avg_vel.y(), pmedx, pmedy);
             
 			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
             bisected_parts.emplace_back(rpoly, el_median, el_end);

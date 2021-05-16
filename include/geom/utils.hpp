@@ -34,10 +34,104 @@ using Point2   = CGAL::Point_2<K>;
 using EPoint2  = CGAL::Point_2<ExactK>;
 using Vector2  = CGAL::Vector_2<K>;
 using Ray2     = CGAL::Ray_2<K>;
+
+template<class Real>
+inline bool within(Real x, Real a, Real b){
+    return (almost_equal(x, a, 2) || almost_equal(x, b, 2)) || (a <= x && x <= b);
+}
+
+struct Point {
+    double x, y;
+    Point operator-(const Point& p) const {
+        return Point {x-p.x, y-p.y};
+    }
+    Point operator+(const Point& p) const {
+        return Point {x+p.x, y+p.y};
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const Point &point) {
+        os << "x: " << point.x << " y: " << point.y;
+        return os;
+    }
+
+    bool operator==(const Point &rhs) const {
+        return almost_equal(x, rhs.x, 10) &&
+               almost_equal(y, rhs.y, 10);
+    }
+
+    bool operator!=(const Point &rhs) const {
+        return !(rhs == *this);
+    }
+};
+
+using Vector = Point;
+
+struct Segment {
+    Point a, b;
+
+    Segment operator-(const Point &p) const {
+        return Segment { Point {a.x - p.x, a.y - p.y}, Point {b.x - p.x, b.y - p.y} };
+    }
+
+    [[nodiscard]] bool contains (const Point& p) const {
+        const auto&[dx, dy] = a - b;
+        const auto tx      = (p.x - b.x) / dx;
+        const auto ty      = (p.y - b.y) / dy;
+        return almost_equal(tx, ty, 2) && within(tx, 0.0, 1.0) && within(ty, 0.0, 1.0);
+    }
+};
+
+struct Line {
+    Point p;
+    Vector v;
+
+    explicit Line(const Segment& s) : p(s.b), v(s.a - s.b) {}
+    Line(Point&& p, Vector&& v) : p(p), v(v) {}
+    Line(const Point& p, const Vector& v) : p(p), v(v) {}
+
+    [[nodiscard]] std::pair<Point, Point> get_points() const {
+        return {p, p+v};
+    }
+};
+
+std::optional<Point> intersection(const Line& l1, const Line& l2) {
+    const auto&[p1, p2] = l1.get_points();
+    const auto&[p3, p4] = l2.get_points();
+
+    const auto D = (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x);
+
+    if(almost_equal(D, 0.0, 2)) return std::nullopt;
+
+    const auto x = ((p1.x*p2.y - p1.y*p2.x)*(p3.x-p4.x) - (p1.x-p2.x)*(p3.x*p4.y - p3.y*p4.x)) / D;
+    const auto y = ((p1.x*p2.y - p1.y*p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x*p4.y - p3.y*p4.x)) / D;
+
+    return Point{x, y};
+}
+
+static std::optional<Point> intersection(Line l, Segment s) {
+    const Line l_s(s);
+    auto opt_i   = intersection(l, l_s);
+    if(const auto& i = opt_i.value(); opt_i.has_value()){
+        if(s.contains(i)) return i;
+        else return std::nullopt;
+    } else return std::nullopt;
+}
+
 template<class Real>
 Real side(Real tx, Real ty, Real dx, Real dy) {
     return dx * ty - dy * tx;
 }
+
+static void add_to_bisection(std::vector<Point> &b1, std::vector<Point> &b2, const Vector& v, const Point &pmed, const Point &p) {
+    const auto median_to_p = p - pmed;
+    const auto s = sign(side(v.x, v.y, median_to_p.x, median_to_p.y));
+    if (s <= 0) {
+        b1.push_back(p);
+    } else {
+        b2.push_back(p);
+    }
+}
+
 template<class Real>
 void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, Real vx, Real vy, const Point2 &pmed, const Point2 &p) {
     auto median_to_p = p-pmed;
@@ -48,6 +142,7 @@ void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, Real vx,
         b2.push_back(p);
     }
 }
+
 inline auto get_angle(const Vector2 &v, const Vector2 &origin) {
     auto dot = v * origin;
     auto det = v.x() * origin.y() - v.y() * origin.x();
@@ -135,13 +230,11 @@ void rotate(const std::array<std::array<Real, 2>, 2> &rotation_mat, ForwardIt el
 }
 
 struct P2Comp {
-    int operator()(Point2 p1, Point2 p2) {
+    int operator()(Point2& p1, Point2& p2) {
         return almost_equal(CGAL::to_double(p1.x()), CGAL::to_double(p2.x()), 2) &&
         almost_equal(CGAL::to_double(p1.y()), CGAL::to_double(p2.y()), 2);
     }
 };
-
-
 
 inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const Vector2& vec, const Point2 &median) {
 
@@ -254,6 +347,64 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
 
     Polygon2 poly1(chull1.begin(), chull1.end());
 
+    Polygon2 poly2(chull2.begin(), chull2.end());
+
+    return {poly1, poly2};
+}
+
+template<class Real>
+std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real vy, Real px, Real py) {
+
+    Vector vec {vx, vy};
+    Point  pmed{px, py};
+    Line   med(pmed, vec);
+
+    std::vector<Point> intersections {};
+
+    /* iterate over polygon edges to find intersections with separating line...*/
+    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
+        auto cgal_segment = *eit;
+        const Segment s {Point{cgal_segment.source().x(), cgal_segment.source().y()},
+                   Point{cgal_segment.target().x(), cgal_segment.target().y()}
+        };
+
+        // Compute intersection
+        const auto opt = intersection(med, s);
+
+        // if we find an intersection, then add the intersection point to the list of intersections
+        if (const auto& inter = opt.value(); opt.has_value()) {
+            intersections.push_back(inter);
+        }
+    }
+
+    // remove duplicates
+    auto last = distinct(intersections.begin(), intersections.end(), std::equal_to{});
+    intersections.erase(last, intersections.end());
+
+    if (intersections.size() != 2) {
+        throw std::logic_error("A line intersects 2 polygon edges.");
+    }
+
+    std::vector<Point> b1(intersections.begin(), intersections.end()), b2(intersections.begin(), intersections.end());
+    b1.reserve(b1.size() + poly.size());
+    b2.reserve(b2.size() + poly.size());
+
+    // add to left or right
+    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
+        const Segment2 s = *eit;
+        add_to_bisection(b1, b2, vec, pmed, Point{s.source().x(), s.source().y()});
+    }
+
+    std::vector<Point2> b1_cgal{}, b2_cgal{};
+    b1_cgal.reserve(b1.size());
+    b2_cgal.reserve(b2.size());
+
+    std::vector<Point2> chull1(b1.size()), chull2(b2.size());
+
+    CGAL::ch_jarvis(b1_cgal.begin(), b1_cgal.end(), std::begin(chull1));
+    CGAL::ch_jarvis(b2_cgal.begin(), b2_cgal.end(), std::begin(chull2));
+
+    Polygon2 poly1(chull1.begin(), chull1.end());
     Polygon2 poly2(chull2.begin(), chull2.end());
 
     return {poly1, poly2};
