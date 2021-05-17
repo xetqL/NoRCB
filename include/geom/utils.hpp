@@ -21,10 +21,23 @@
 #include <vector>
 #include <array>
 #include <cassert>
+#include <serial/format.hpp>
+#include <ostream>
+#include <parallel/algorithm.hpp>
 #include "algorithm.hpp"
 #include "numeric/utils.hpp"
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+#include <boost/geometry/geometries/segment.hpp>
+#include <boost/geometry/algorithms/intersection.hpp>
+
+#include <boost/multiprecision/gmp.hpp>
+#include <boost/multiprecision/number.hpp>
+
+namespace bm = boost::multiprecision;
 
 //using K      = CGAL::Simple_cartesian<double>;
+
 using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
 using ExactK   = CGAL::Exact_predicates_exact_constructions_kernel;
 using Polygon2 = CGAL::Polygon_2<K>;
@@ -35,16 +48,25 @@ using EPoint2  = CGAL::Point_2<ExactK>;
 using Vector2  = CGAL::Vector_2<K>;
 using Ray2     = CGAL::Ray_2<K>;
 
+static const double acceptable_error = std::numeric_limits<double>::epsilon() * 16;
+
 template<class Real>
-inline bool within(Real x, Real a, Real b){
-    return (almost_equal(x, a, 2) || almost_equal(x, b, 2)) || (a <= x && x <= b);
+inline bool within(Real x, Real a, Real b, int ulp){
+    return (almost_equal(x, a, ulp) || almost_equal(x, b, ulp)) || (a <= x && x <= b);
+}
+
+template<class Real>
+inline bool within(Real x, Real a, Real b, Real dv){
+    return (_almost_equal(x, a, dv) || _almost_equal(x, b, dv)) || (a <= x && x <= b);
 }
 
 struct Point {
-    double x, y;
+    bm::mpf_float_50 x, y;
+
     Point operator-(const Point& p) const {
         return Point {x-p.x, y-p.y};
     }
+
     Point operator+(const Point& p) const {
         return Point {x+p.x, y+p.y};
     }
@@ -53,17 +75,19 @@ struct Point {
         os << "x: " << point.x << " y: " << point.y;
         return os;
     }
-
+/*
     bool operator==(const Point &rhs) const {
-        return almost_equal(x, rhs.x, 10) &&
-               almost_equal(y, rhs.y, 10);
+        return falmost_equal(x, rhs.x, acceptable_error) &&
+               falmost_equal(y, rhs.y, acceptable_error);
     }
-
+*/
+    bool operator==(const Point &rhs) const {
+        return x == rhs.x && y == rhs.y;
+    }
     bool operator!=(const Point &rhs) const {
         return !(rhs == *this);
     }
 };
-
 using Vector = Point;
 
 struct Segment {
@@ -73,11 +97,44 @@ struct Segment {
         return Segment { Point {a.x - p.x, a.y - p.y}, Point {b.x - p.x, b.y - p.y} };
     }
 
+
     [[nodiscard]] bool contains (const Point& p) const {
-        const auto&[dx, dy] = a - b;
-        const auto tx      = (p.x - b.x) / dx;
-        const auto ty      = (p.y - b.y) / dy;
-        return almost_equal(tx, ty, 2) && within(tx, 0.0, 1.0) && within(ty, 0.0, 1.0);
+
+        const auto crossproduct = (p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y);
+
+        if(bm::abs(crossproduct) > std::numeric_limits<double>::epsilon() * 4) {
+            return false;
+        }
+
+        const auto dotproduct = (p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y);
+
+        if(dotproduct < 0.0) {
+            return false;
+        }
+
+        const auto squaredlengthab = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+
+        if(dotproduct > squaredlengthab) {
+            return false;
+        }
+
+        return true;
+    }
+
+/*
+    bool _contains(const Point& p) const {
+        double AB =  std::sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y));
+        double AP =  std::sqrt((p.x-a.x)*(p.x-a.x)+(p.y-a.y)*(p.y-a.y));
+        double PB =  std::sqrt((b.x-p.x)*(b.x-p.x)+(b.y-p.y)*(b.y-p.y));
+        par::pcout() << *this << " " << p << " " << std::setprecision(32) << std::fabs(AB - (AP+PB))<< std::setprecision(6)  << std::endl;
+
+        return std::fabs(AB - (AP+PB)) < 1e-12;
+        //return almost_equal(AB, AP + PB, 20);
+    }
+*/
+    friend std::ostream &operator<<(std::ostream &os, const Segment &segment) {
+        os << "a: " << segment.a << " b: " << segment.b;
+        return os;
     }
 };
 
@@ -94,27 +151,35 @@ struct Line {
     }
 };
 
-std::optional<Point> intersection(const Line& l1, const Line& l2) {
+inline std::optional<Point> intersection(const Line& l1, const Line& l2) {
     const auto&[p1, p2] = l1.get_points();
     const auto&[p3, p4] = l2.get_points();
 
     const auto D = (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x);
 
-    if(almost_equal(D, 0.0, 2)) return std::nullopt;
+    if(bm::abs(D) < acceptable_error) {
+        return std::nullopt;
+    }
 
-    const auto x = ((p1.x*p2.y - p1.y*p2.x)*(p3.x-p4.x) - (p1.x-p2.x)*(p3.x*p4.y - p3.y*p4.x)) / D;
-    const auto y = ((p1.x*p2.y - p1.y*p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x*p4.y - p3.y*p4.x)) / D;
+    const auto x = ((p1.x*p2.y-p1.y*p2.x)*(p3.x-p4.x) - (p1.x-p2.x)*(p3.x*p4.y - p3.y*p4.x)) / D;
+    const auto y = ((p1.x*p2.y-p1.y*p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x*p4.y - p3.y*p4.x)) / D;
 
     return Point{x, y};
 }
 
-static std::optional<Point> intersection(Line l, Segment s) {
+inline std::optional<Point> intersection(const Line& l, const Segment& s) {
     const Line l_s(s);
-    auto opt_i   = intersection(l, l_s);
-    if(const auto& i = opt_i.value(); opt_i.has_value()){
-        if(s.contains(i)) return i;
-        else return std::nullopt;
-    } else return std::nullopt;
+    const auto opt_i = intersection(l, l_s);
+    if(opt_i.has_value()){
+        const auto& i = opt_i.value();
+        if(s.contains(i))
+            return i;
+        else {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
+    }
 }
 
 template<class Real>
@@ -122,9 +187,11 @@ Real side(Real tx, Real ty, Real dx, Real dy) {
     return dx * ty - dy * tx;
 }
 
-static void add_to_bisection(std::vector<Point> &b1, std::vector<Point> &b2, const Vector& v, const Point &pmed, const Point &p) {
+inline void add_to_bisection(std::vector<Point> &b1, std::vector<Point> &b2, const Vector& v, const Point &pmed, const Point &p) {
     const auto median_to_p = p - pmed;
+    const auto vo = v-pmed;
     const auto s = sign(side(v.x, v.y, median_to_p.x, median_to_p.y));
+
     if (s <= 0) {
         b1.push_back(p);
     } else {
@@ -293,7 +360,6 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
     return {poly1, poly2};
 }
 
-
 template<class Real>
 std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real vy, const Point2 &median) {
 
@@ -372,17 +438,24 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
         const auto opt = intersection(med, s);
 
         // if we find an intersection, then add the intersection point to the list of intersections
-        if (const auto& inter = opt.value(); opt.has_value()) {
+        if (opt.has_value()) {
+            const auto& inter = opt.value();
             intersections.push_back(inter);
         }
     }
 
     // remove duplicates
-    auto last = distinct(intersections.begin(), intersections.end(), std::equal_to{});
-    intersections.erase(last, intersections.end());
+    /*if(intersections.size() > 2){
+        auto last = distinct(intersections.begin(), intersections.end(), std::equal_to{});
+        intersections.erase(last, intersections.end());
+    }*/
 
     if (intersections.size() != 2) {
-        throw std::logic_error("A line intersects 2 polygon edges.");
+        std::stringstream ss {};
+        std::for_each(intersections.begin(), intersections.end(), [&ss](auto p) {ss << p;});
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if(!rank) throw std::logic_error(ser::fmt("A line intersects 2 polygon edges. %s", ss.str()));
     }
 
     std::vector<Point> b1(intersections.begin(), intersections.end()), b2(intersections.begin(), intersections.end());
@@ -393,16 +466,20 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
     for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
         const Segment2 s = *eit;
         add_to_bisection(b1, b2, vec, pmed, Point{s.source().x(), s.source().y()});
+        add_to_bisection(b1, b2, vec, pmed, Point{s.target().x(), s.target().y()});
     }
 
     std::vector<Point2> b1_cgal{}, b2_cgal{};
     b1_cgal.reserve(b1.size());
     b2_cgal.reserve(b2.size());
 
-    std::vector<Point2> chull1(b1.size()), chull2(b2.size());
+    std::transform(b1.begin(), b1.end(), std::back_inserter(b1_cgal), [](const auto& p){return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());});
+    std::transform(b2.begin(), b2.end(), std::back_inserter(b2_cgal), [](const auto& p){return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());});
 
-    CGAL::ch_jarvis(b1_cgal.begin(), b1_cgal.end(), std::begin(chull1));
-    CGAL::ch_jarvis(b2_cgal.begin(), b2_cgal.end(), std::begin(chull2));
+    std::vector<Point2> chull1{}, chull2{};
+
+    CGAL::ch_jarvis(b1_cgal.begin(), b1_cgal.end(), std::back_inserter(chull1));
+    CGAL::ch_jarvis(b2_cgal.begin(), b2_cgal.end(), std::back_inserter(chull2));
 
     Polygon2 poly1(chull1.begin(), chull1.end());
     Polygon2 poly2(chull2.begin(), chull2.end());
