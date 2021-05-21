@@ -16,9 +16,10 @@
 
 #include <mpi.h>
 
-namespace norcb {
+/*
+ *
 template<class Real>
-Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy) {
+Polygon2 CGAL_init_domain(Real minx, Real miny, Real maxx, Real maxy) {
     Point2 p1(minx, miny), p2(maxx, miny), p3(maxx, maxy), p4(minx, maxy);
     Polygon2 d;
     d.push_back(p1);
@@ -27,7 +28,6 @@ Polygon2 init_domain(Real minx, Real miny, Real maxx, Real maxy) {
     d.push_back(p4);
     return d;
 }
-namespace{
 template<class ReduceStrategy>
 Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, ReduceStrategy reduce) {
     const auto size = vx.size();
@@ -46,102 +46,11 @@ Vector2 compute_average_velocity(std::vector<double> vx, std::vector<double> vy,
 
     return Vector2(acc_vx / xsize, acc_vy / ysize);
 }
-}
-
-struct NoRCB {
-    K trait {};
-    int world_size, rank;
-    Polygon2 domain;
-    std::vector<Polygon2> subdomains{};
-    MPI_Comm comm;
-
-    NoRCB(const Polygon2& domain, MPI_Comm comm) : domain(domain), comm(comm) {
-        MPI_Comm_size(comm, &world_size);
-        MPI_Comm_rank(comm, &rank);
-        subdomains.resize(world_size);
-    }
-
-    NoRCB(const Polygon2& domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
-        MPI_Comm_size(comm, &world_size);
-        MPI_Comm_rank(comm, &rank);
-    }
-
-    template<class Real>
-    void get_owner(Real x, Real y, int* owner) {
-        Point2 pt(x,y);
-
-        const auto c = pt;
-        for((*owner) = 0; (*owner) < world_size; (*owner)++){
-            const auto& subdomain = this->subdomains.at(*owner);
-            int belongs = 1;
-            for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
-                Segment2 s(*beg);
-
-                const auto& a = s.source();
-                const auto& b = s.target();
-                const auto ab = b-a;
-                const auto ac = c-a;
-                auto cross = CGAL::to_double(ab.x()*ac.y() - ab.y()*ac.x());
-                const auto sign  = std::signbit(cross);
-                const auto is_on_boundary = std::fabs(cross) < 1e-10;
-                const auto side  = is_on_boundary || !sign;
-
-                belongs &= side;
-            }
-
-            if(belongs) return;
-        }
-		*owner = -1;
-    }
-
-    template<class Real>
-    void get_intersecting_domains(Real x1, Real x2, Real y1, Real y2, Real z1, Real z2, int* PEs, int* num_found) {
-        Polygon2 interaction_square = init_domain(x1, y1, x2, y2);
-        *num_found = 0;
-        for(auto PE = 0; PE < world_size; ++PE){
-            const Polygon2& subdomain = subdomains.at(PE);
-            if(CGAL::do_intersect(subdomain, interaction_square)){
-                PEs[*num_found] = PE;
-                *num_found += 1;
-            }
-        }
-    }
-
-    template<class Real>
-    void get_neighbors(Real x, Real y, Real z, double rc, int* PEs, int* num_found) const {
-        Point2 p(x, y);
-        const double sqrc = rc*rc;
-        *num_found = 0;
-        int i = 0;
-        for(const Polygon2& poly : subdomains) {
-            for(auto beg = poly.edges_begin(); beg != poly.edges_end(); beg++) {
-                if(CGAL::squared_distance(*beg, p) < sqrc) {
-                    PEs[*num_found] = i;
-                    *num_found = *num_found + 1;
-                    break;
-                }
-            }
-            i++;
-        }
-    }
-
-};
-
-NoRCB* allocate_from(NoRCB* from);
-void destroy(NoRCB* lb);
-
-namespace seq {
-namespace{
 std::vector<std::tuple<Polygon2,
-std::vector<double>, std::vector<double>,
-std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
-                                                     std::vector<double>& vx, std::vector<double>& vy,
+        std::vector<double>, std::vector<double>,
+        std::vector<double>, std::vector<double>>> partition(unsigned P, std::vector<double>& x, std::vector<double>& y,
+                                                             std::vector<double>& vx, std::vector<double>& vy,
                                                              const Polygon2& domain);
-}
-}
-
-namespace parallel {
-namespace {
 Vector2 __compute_average_velocity(std::vector<double> vx, std::vector<double> vy, bool axis, MPI_Comm comm);
 
 template<class ForwardIt>
@@ -164,8 +73,8 @@ __parallel_compute_average_velocity(ForwardIt vx_begin, ForwardIt vx_end, Forwar
 }
 
 template<class Real, class ForwardIt, class GetVelocityFunc>
-Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
-                                          GetVelocityFunc getVelocity) {
+Vector2 CGAL_parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
+                                               GetVelocityFunc getVelocity) {
 
     auto size = std::distance(el_begin, el_end);
 
@@ -193,7 +102,6 @@ Vector2 parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
 
     return Vector2(s[0] / total_size, s[1] / total_size);
-}
 }
 std::vector<std::tuple<Polygon2,
         std::vector<double>, std::vector<double>,
@@ -290,14 +198,166 @@ partition(unsigned P,
 
     return partitions;
 }
+ *
+ * */
+
+
+namespace norcb {
+
+
+template<class Real>
+Polygon init_domain(Real minx, Real miny, Real maxx, Real maxy) {
+    std::array<Point, 4> p = { Point{minx, miny},Point{maxx, miny},Point{maxx, maxy},Point{minx, maxy} };
+    Polygon d(p.begin(), p.end());
+    return d;
+}
+
+namespace{
+}
+
+struct NoRCB {
+
+    int world_size, rank;
+    Polygon domain;
+    std::vector<Polygon> subdomains{};
+    MPI_Comm comm;
+
+    NoRCB(const Polygon& domain, MPI_Comm comm) : domain(domain), comm(comm) {
+        MPI_Comm_size(comm, &world_size);
+        MPI_Comm_rank(comm, &rank);
+        subdomains.resize(world_size);
+    }
+
+    NoRCB(const Polygon& domain, std::vector<Polygon> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
+        MPI_Comm_size(comm, &world_size);
+        MPI_Comm_rank(comm, &rank);
+    }
+
+    template<class Real>
+    void get_owner(Real x, Real y, int* owner) {
+        Point pt{x, y};
+
+        const auto c = pt;
+        for((*owner) = 0; (*owner) < world_size; (*owner)++){
+            const auto& subdomain = this->subdomains.at(*owner);
+            int belongs = 1;
+            for(auto beg = subdomain.edges_begin(); beg != subdomain.edges_end(); beg++) {
+                const auto& s = *beg;
+
+                const auto&[a, b] = s;
+                const auto ab = b-a;
+                const auto ac = c-a;
+                auto cross = (ab.x*ac.y - ab.y*ac.x);
+                const auto sign  = std::signbit(cross);
+                const auto is_on_boundary = std::fabs(cross) < acceptable_error;
+                const auto side  = is_on_boundary || !sign;
+
+                belongs &= side;
+            }
+
+            if(belongs) return;
+        }
+		*owner = -1;
+    }
+
+    template<class Real>
+    void get_neighbors(Real x, Real y, Real z, double rc, int* PEs, int* num_found) const {
+        Point p{x, y};
+        const double sqrc = rc*rc;
+        *num_found = 0;
+        int i = 0;
+        for(const Polygon& poly : subdomains) {
+            for(auto beg = poly.edges_begin(); beg != poly.edges_end(); beg++) {
+                if(sqr_dist(*beg, p) < sqrc) {
+                    PEs[*num_found] = i;
+                    *num_found = *num_found + 1;
+                    break;
+                }
+            }
+            i++;
+        }
+    }
+
+};
+
+NoRCB* allocate_from(NoRCB* from);
+void destroy(NoRCB* lb);
+
+namespace parallel {
+namespace {
+
+
+template<class Real, class ForwardIt, class GetVelocityFunc>
+Vector parallel_compute_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
+                                          GetVelocityFunc getVelocity) {
+
+    auto size = std::distance(el_begin, el_end);
+
+    std::array<Real, 2> s = {0., 0.};
+    auto folding_axis = ((longest_axis + 1) % 2);
+
+    decltype(size) total_size;
+
+    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+
+    // O(n/p)
+    for (auto i = 0; i < size; ++i) {
+        auto velocity = *getVelocity(&(*(el_begin + i)));
+        const auto d2 = velocity[0]*velocity[0] + velocity[1]*velocity[1];
+        velocity[0] /= d2; velocity[1] /= d2;
+        if(velocity.at(folding_axis) < 0) {
+            s[0] += -velocity.at(0);
+            s[1] += -velocity.at(1);
+        } else {
+            s[0] += velocity.at(0);
+            s[1] += velocity.at(1);
+        }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
+
+    return {s[0] / total_size, s[1] / total_size};
+}
+template<class Real, class ForwardIt, class GetVelocityFunc>
+std::pair<Real, Real> par_get_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
+                                         GetVelocityFunc getVelocity) {
+
+    auto size = std::distance(el_begin, el_end);
+
+    std::array<Real, 2> s = {0., 0.};
+    auto folding_axis = ((longest_axis + 1) % 2);
+
+    decltype(size) total_size;
+
+    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+
+    // O(n/p)
+    for (auto i = 0; i < size; ++i) {
+        auto velocity = *getVelocity(&(*(el_begin + i)));
+        const auto d2 = velocity[0]*velocity[0] + velocity[1]*velocity[1];
+        velocity[0] /= d2; velocity[1] /= d2;
+        if(velocity.at(folding_axis) < 0) {
+            s[0] += -velocity.at(0);
+            s[1] += -velocity.at(1);
+        } else {
+            s[0] += velocity.at(0);
+            s[1] += velocity.at(1);
+        }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
+
+    return {s[0] / total_size, s[1] / total_size};
+}
+}
 
 template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
-std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>>
+std::vector<std::tuple<Polygon, ForwardIt, ForwardIt>>
 partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
-          const Polygon2 &domain, MPI_Datatype datatype, MPI_Comm comm,
+          const Polygon &domain, MPI_Datatype datatype, MPI_Comm comm,
           GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
 
-    std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>> partitions {};
+    std::vector<std::tuple<Polygon, ForwardIt, ForwardIt>> partitions {};
 
     partitions.emplace_back(domain, el_begin, el_end);
 
@@ -324,11 +384,12 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const unsigned target_axis = (max.at(0) - min.at(0)) < (max.at(1) - min.at(1));
 
-            const Vector2 origin(0., 1.);
+            const Real ox = 0.0;
+            const Real oy = 1.0;
 
-			auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
+			auto [avg_velx, avg_vely] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
 
-            auto theta   = get_angle(avg_vel, origin);
+            auto theta   = get_angle(avg_velx, avg_vely, ox, oy);
 
             const auto clockwise     = get_rotation_matrix(theta);
 
@@ -336,8 +397,9 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             rotate(clockwise, el_begin, el_end, getPosition);
 
-            const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
-            avg_vel = avg_vel / norm;
+            const auto norm = std::sqrt(avg_velx*avg_velx+avg_vely*avg_vely);
+            avg_velx = avg_velx / norm;
+            avg_vely = avg_vely / norm;
 
             Real median;
             {
@@ -375,7 +437,7 @@ partition(unsigned P, ForwardIt el_begin, ForwardIt el_end,
 
             const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
 
-            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel.x(), avg_vel.y(), pmedx, pmedy);
+            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_velx, avg_vely, pmedx, pmedy);
             
 			bisected_parts.emplace_back(lpoly, el_begin,  el_median);
             bisected_parts.emplace_back(rpoly, el_median, el_end);

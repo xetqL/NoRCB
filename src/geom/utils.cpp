@@ -3,9 +3,6 @@
 //
 #include "geom/utils.hpp"
 
-auto side(const Vector2 &T, const Vector2 &D) -> std::remove_const_t<std::remove_reference_t<decltype(T.y())>> {
-    return D.x() * T.y() - D.y() * T.x();
-}
 
 std::pair<std::vector<double>, std::vector<double>> rotate_copy(const std::array<std::array<double, 2>, 2> &matrix, const std::vector<double> &x,
                                                                 const std::vector<double> &y) {
@@ -19,12 +16,5 @@ std::pair<std::vector<double>, std::vector<double>> rotate_copy(const std::array
     return {rx, ry};
 }
 
-void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, const Vector2 &v, const Point2 &pmed, const Point2 &p) {
-    auto s = sign(CGAL::to_double(side(v, p - pmed)));
-    if (s <= 0) {
-        b1.push_back(p);
-    } else {
-        b2.push_back(p);
-    }
-}
+
 

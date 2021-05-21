@@ -3,20 +3,6 @@
 //
 
 #pragma once
-#include <CGAL/Boolean_set_operations_2.h>
-#include <CGAL/Polygon_2.h>
-#include <CGAL/Point_2.h>
-#include <CGAL/Vector_2.h>
-#include <CGAL/Ray_2.h>
-#include <CGAL/iterator.h>
-#include <CGAL/ch_jarvis.h>
-// Kernels
-#include <CGAL/Cartesian.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-
-#include <CGAL/ch_graham_andrew.h>
-#include <CGAL/Polygon_2_algorithms.h>
 
 #include <vector>
 #include <array>
@@ -26,19 +12,9 @@
 #include <parallel/algorithm.hpp>
 #include "algorithm.hpp"
 #include "numeric/utils.hpp"
+#include <sstream>
 
-
-using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
-using ExactK   = CGAL::Exact_predicates_exact_constructions_kernel;
-
-using Polygon2 = CGAL::Polygon_2<K>;
-
-using Segment2 = CGAL::Segment_2<K>;
-using Point2   = CGAL::Point_2<K>;
-using EPoint2  = CGAL::Point_2<ExactK>;
-using Vector2  = CGAL::Vector_2<K>;
-
-static const double acceptable_error = std::numeric_limits<double>::epsilon() * 16;
+static const double acceptable_error = 1e-12;
 
 struct Point {
     long double x, y;
@@ -46,9 +22,17 @@ struct Point {
     Point operator-(const Point& p) const {
         return Point {x-p.x, y-p.y};
     }
-
     Point operator+(const Point& p) const {
         return Point {x+p.x, y+p.y};
+    }
+    Point operator/(const Point& p) const {
+        return Point {x/p.x, y/p.y};
+    }
+    Point operator*(const Point& p) const {
+        return Point {x*p.x, y*p.y};
+    }
+    Point operator*(const long double& v) const {
+        return Point {x*v, y*v};
     }
 
     friend std::ostream &operator<<(std::ostream &os, const Point &point) {
@@ -64,10 +48,13 @@ struct Point {
         return !(rhs == *this);
     }
 };
+
 using Vector = Point;
 
 struct Segment {
     Point a, b;
+
+    Segment(const Point& a, const Point& b) : a(a), b(b){}
 
     Segment operator-(const Point &p) const {
         return Segment { Point {a.x - p.x, a.y - p.y}, Point {b.x - p.x, b.y - p.y} };
@@ -78,18 +65,22 @@ struct Segment {
         const auto crossproduct = (p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y);
 
         if(std::fabs(crossproduct) > acceptable_error) {
+            par::pcout() << *this << " doesnt contains " << p << " due to crossproduct: " << crossproduct << std::endl;
             return false;
         }
 
         const auto dotproduct = (p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y);
 
-        if(dotproduct < 0.0) {
+        if(dotproduct < acceptable_error) {
+            par::pcout() << *this << " doesnt contains " << p << " due to dotproduct: " << dotproduct << std::endl;
+
             return false;
         }
 
         const auto squaredlengthab = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
 
         if(dotproduct > squaredlengthab) {
+            par::pcout() << *this << " doesnt contains " << p << " due to dotproduct: " << dotproduct << std::endl;
             return false;
         }
 
@@ -101,6 +92,30 @@ struct Segment {
         return os;
     }
 };
+
+inline auto sqr_dist( const Segment& s, const Point& p )
+{
+    auto  n = s.b - s.a;
+    auto pa = s.a - p;
+    auto bp = p - s.b;
+
+    auto c = n.x*pa.x + n.y*pa.y; //Dot( n, pa );
+
+    // Closest point is a
+    if ( c > 0.0 )
+        return pa.x*pa.x + pa.y*pa.y; // Dot( pa, pa );
+
+
+    // Closest point is b
+    c = n.x*bp.x + n.y*bp.y;
+    if ( c > 0.0 )
+        return bp.x*bp.x + bp.y*bp.y;
+
+    // Closest point is between a and b
+    auto e = pa - n * (c / (n.x*n.x + n.y*n.y ));
+
+    return e.x*e.x + e.y*e.y;
+}
 
 struct Line {
     Point p;
@@ -114,13 +129,86 @@ struct Line {
     }
 };
 
+inline auto crossproduct(const Point& p, const Point& q, const Point& r) {
+    return (q.x * r.y - r.x * q.y) - (p.x * r.y - r.x * p.y) + (p.x * q.y - p.y * q.x);
+}
+
+inline int orientation_sign(const Point& p, const Point& q, const Point& r)
+{
+    const auto res = crossproduct(p, q, r);
+    return (almost_equal(res, 0.0l, 4)) ? 0 : ((res > 0.0) ? 1 : -1);
+}
+
+class Polygon {
+    template<class FIt> void create_polygon(FIt beg, FIt end) {
+        auto n = std::distance(beg, end);
+
+        std::vector<Point> pUpper{}; pUpper.reserve(n);
+        std::vector<Point> pLower{}; pLower.reserve(n);
+
+        //sort by x axis
+        std::sort(beg, end, [](auto& p1, auto& p2) {
+            return ((almost_equal(p1.x, p2.x, 4)) ? (p1.y < p2.y) : (p1.x < p2.x));
+        });
+
+        auto& right = beg[n - 1];
+        auto& left  = beg[0];
+
+        pLower.push_back(left);
+
+        for (auto i = 1; i < n - 1; ++i) {
+            if (orientation_sign(right, left, beg[i]) > 0) {
+                pLower.push_back(beg[i]);
+            } else {
+                pUpper.push_back(beg[i]);
+            }
+        }
+        pUpper.push_back(right);
+        std::reverse(pUpper.begin(), pUpper.end());
+
+        vertices.assign(pLower.begin(), pLower.end());
+        vertices.insert(vertices.end(), pUpper.begin(), pUpper.end());
+
+        edges.reserve(n);
+        for(auto i = 1; i <= n; ++i){
+            const auto& p1 = vertices.at(i - 1);
+            const auto& p2 = vertices.at(i % n);
+            edges.emplace_back(p1, p2);
+        }
+    }
+public:
+    std::vector<Point> vertices{};
+    std::vector<Segment> edges{};
+    Polygon(){}
+
+    template<class FIt> Polygon(FIt beg, FIt end){
+        create_polygon(beg, end);
+    }
+
+    [[nodiscard]] auto edges_cbegin() const {
+        return edges.cbegin();
+    }
+    [[nodiscard]] auto edges_cend() const {
+        return edges.cend();
+    }
+    [[nodiscard]] auto edges_begin() const {
+        return edges.begin();
+    }
+    [[nodiscard]] auto edges_end() const {
+        return edges.end();
+    }
+    [[nodiscard]] unsigned size() const {
+        return vertices.size();
+    }
+};
+
 inline std::optional<Point> intersection(const Line& l1, const Line& l2) {
     const auto&[p1, p2] = l1.get_points();
     const auto&[p3, p4] = l2.get_points();
 
     const auto D = (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x);
 
-    if(std::fabs(D) < acceptable_error) {
+    if(std::fabs(D) < std::numeric_limits<double>::epsilon()) {
         return std::nullopt;
     }
 
@@ -152,7 +240,6 @@ Real side(Real tx, Real ty, Real dx, Real dy) {
 
 inline void add_to_bisection(std::vector<Point> &b1, std::vector<Point> &b2, const Vector& v, const Point &pmed, const Point &p) {
     const auto median_to_p = p - pmed;
-    const auto vo = v-pmed;
     const auto s = sign(side(v.x, v.y, median_to_p.x, median_to_p.y));
 
     if (s <= 0) {
@@ -162,31 +249,20 @@ inline void add_to_bisection(std::vector<Point> &b1, std::vector<Point> &b2, con
     }
 }
 
-template<class Real>
-void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, Real vx, Real vy, const Point2 &pmed, const Point2 &p) {
-    auto median_to_p = p-pmed;
-    auto s = sign(CGAL::to_double(side(vx, vy, (Real) median_to_p.x(), (Real) median_to_p.y())));
-    if (s <= 0) {
-        b1.push_back(p);
-    } else {
-        b2.push_back(p);
-    }
-}
-
-inline auto get_angle(const Vector2 &v, const Vector2 &origin) {
-    auto dot = v * origin;
-    auto det = v.x() * origin.y() - v.y() * origin.x();
-    return std::atan2(CGAL::to_double(det), CGAL::to_double(dot));
+inline auto get_angle(const Vector &v, const Vector &origin) {
+    auto dot = v.x * origin.x + v.y * v.y;
+    auto det = v.x * origin.y - v.y * origin.x;
+    return std::atan2(det, dot);
 }
 
 template<class Real>
 inline auto get_angle(Real x1, Real y1, Real x2, Real y2) {
-    auto dot = x1*x2 + y1*y2;
+    auto dot = x1 * x2 + y1 * y2;
     auto det = x1 * y2 - y1 * x2;
     return std::atan2(det, dot);
 }
 
-void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, const Vector2 &v, const Point2 &pmed, const Point2 &p);
+
 
 template<class Real>
 void rotate(const std::array<std::array<Real, 2>, 2> &matrix, std::vector<Real> &x, std::vector<Real> &y){
@@ -211,7 +287,6 @@ std::pair<std::vector<double>, std::vector<double>> rotate_copy(
         const std::vector<double> &x,
         const std::vector<double> &y);
 
-auto side(const Vector2 &T, const Vector2 &D) -> std::remove_const_t<std::remove_reference_t<decltype(T.y())>>;
 
 template<class Real>
 constexpr Real to_degree(Real radian){
@@ -258,6 +333,35 @@ void rotate(const std::array<std::array<Real, 2>, 2> &rotation_mat, ForwardIt el
         (position->at(1)) = ryi;
     }
 }
+/*
+template<class Real>
+void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, Real vx, Real vy, const Point2 &pmed, const Point2 &p) {
+    auto median_to_p = p-pmed;
+    auto s = sign(CGAL::to_double(side(vx, vy, (Real) median_to_p.x(), (Real) median_to_p.y())));
+    if (s <= 0) {
+        b1.push_back(p);
+    } else {
+        b2.push_back(p);
+    }
+}
+
+inline auto get_angle(const Vector2 &v, const Vector2 &origin) {
+    auto dot = v * origin;
+    auto det = v.x() * origin.y() - v.y() * origin.x();
+    return std::atan2(CGAL::to_double(det), CGAL::to_double(dot));
+}
+
+inline auto side(const Vector2 &T, const Vector2 &D) -> std::remove_const_t<std::remove_reference_t<decltype(T.y())>> {
+    return D.x() * T.y() - D.y() * T.x();
+}
+inline void add_to_bisection(std::vector<Point2> &b1, std::vector<Point2> &b2, const Vector2 &v, const Point2 &pmed, const Point2 &p) {
+    auto s = sign(CGAL::to_double(side(v, p - pmed)));
+    if (s <= 0) {
+        b1.push_back(p);
+    } else {
+        b2.push_back(p);
+    }
+}
 
 struct P2Comp {
     int operator()(Point2& p1, Point2& p2) {
@@ -275,7 +379,7 @@ inline std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, const 
     CGAL::Line_2<ExactK> med(emedian, evec);
 
     std::vector<Point2> intersections {};
-    /* iterate over polygon edges to find intersections with separating line with exact predicates...*/
+    // iterate over polygon edges to find intersections with separating line with exact predicates...
     for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
         auto nonExactSegment = *eit;
         CGAL::Segment_2<ExactK> s(EPoint2(nonExactSegment.source().x(), nonExactSegment.source().y()),
@@ -333,7 +437,7 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
     CGAL::Line_2<ExactK> med(emedian, evec);
 
     std::vector<Point2> intersections {};
-    /* iterate over polygon edges to find intersections with separating line with exact predicates...*/
+    // iterate over polygon edges to find intersections with separating line with exact predicates...
     for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
         auto nonExactSegment = *eit;
         CGAL::Segment_2<ExactK> s(EPoint2(nonExactSegment.source().x(), nonExactSegment.source().y()),
@@ -380,9 +484,9 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
 
     return {poly1, poly2};
 }
-
+*/
 template<class Real>
-std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real vy, Real px, Real py) {
+std::pair<Polygon, Polygon> bisect_polygon(const Polygon &poly, Real vx, Real vy, Real px, Real py) {
 
     Vector vec {vx, vy};
     Point  pmed{px, py};
@@ -391,12 +495,9 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
     std::vector<Point> intersections {};
 
     /* iterate over polygon edges to find intersections with separating line...*/
-    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
-        auto cgal_segment = *eit;
-        const Segment s {Point{cgal_segment.source().x(), cgal_segment.source().y()},
-                   Point{cgal_segment.target().x(), cgal_segment.target().y()}
-        };
 
+    for (auto eit = poly.edges_cbegin(); eit != poly.edges_cend(); eit++) {
+        const auto& s = *eit;
         // Compute intersection
         const auto opt = intersection(med, s);
 
@@ -407,14 +508,8 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
         }
     }
 
-    // remove duplicates
-    /*if(intersections.size() > 2){
-        auto last = distinct(intersections.begin(), intersections.end(), std::equal_to{});
-        intersections.erase(last, intersections.end());
-    }*/
-
     if (intersections.size() != 2) {
-        std::stringstream ss {};
+        std::stringstream ss;
         std::for_each(intersections.begin(), intersections.end(), [&ss](auto p) {ss << p;});
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -426,32 +521,14 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
     b2.reserve(b2.size() + poly.size());
 
     // add to left or right
-    for (auto eit = poly.edges_begin(); eit != poly.edges_end(); ++eit) {
-        const Segment2 s = *eit;
-        add_to_bisection(b1, b2, vec, pmed, Point{s.source().x(), s.source().y()});
-        add_to_bisection(b1, b2, vec, pmed, Point{s.target().x(), s.target().y()});
+    for (auto eit = poly.edges_cbegin(); eit != poly.edges_cend(); eit++) {
+        const auto& s = *eit;
+        add_to_bisection(b1, b2, vec, pmed, s.a);
+        add_to_bisection(b1, b2, vec, pmed, s.b);
     }
 
-    std::vector<Point2> b1_cgal{}, b2_cgal{};
-    b1_cgal.reserve(b1.size());
-    b2_cgal.reserve(b2.size());
-
-    std::transform(b1.begin(), b1.end(), std::back_inserter(b1_cgal), [](const auto& p){
-        return Point2(p.x, p.y);
-        //return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());
-    });
-    std::transform(b2.begin(), b2.end(), std::back_inserter(b2_cgal), [](const auto& p){
-        return Point2(p.x, p.y);
-        //return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());
-    });
-
-    std::vector<Point2> chull1{}, chull2{};
-
-    CGAL::ch_jarvis(b1_cgal.begin(), b1_cgal.end(), std::back_inserter(chull1));
-    CGAL::ch_jarvis(b2_cgal.begin(), b2_cgal.end(), std::back_inserter(chull2));
-
-    Polygon2 poly1(chull1.begin(), chull1.end());
-    Polygon2 poly2(chull2.begin(), chull2.end());
+    Polygon poly1(b1.begin(), b1.end());
+    Polygon poly2(b2.begin(), b2.end());
 
     return {poly1, poly2};
 }
