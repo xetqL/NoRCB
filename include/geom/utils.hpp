@@ -26,42 +26,22 @@
 #include <parallel/algorithm.hpp>
 #include "algorithm.hpp"
 #include "numeric/utils.hpp"
-#include <boost/geometry.hpp>
-#include <boost/geometry/geometries/point_xy.hpp>
-#include <boost/geometry/geometries/segment.hpp>
-#include <boost/geometry/algorithms/intersection.hpp>
 
-#include <boost/multiprecision/gmp.hpp>
-#include <boost/multiprecision/number.hpp>
-
-namespace bm = boost::multiprecision;
-
-//using K      = CGAL::Simple_cartesian<double>;
 
 using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
 using ExactK   = CGAL::Exact_predicates_exact_constructions_kernel;
+
 using Polygon2 = CGAL::Polygon_2<K>;
-using Line2    = CGAL::Line_2<K>;
+
 using Segment2 = CGAL::Segment_2<K>;
 using Point2   = CGAL::Point_2<K>;
 using EPoint2  = CGAL::Point_2<ExactK>;
 using Vector2  = CGAL::Vector_2<K>;
-using Ray2     = CGAL::Ray_2<K>;
 
 static const double acceptable_error = std::numeric_limits<double>::epsilon() * 16;
 
-template<class Real>
-inline bool within(Real x, Real a, Real b, int ulp){
-    return (almost_equal(x, a, ulp) || almost_equal(x, b, ulp)) || (a <= x && x <= b);
-}
-
-template<class Real>
-inline bool within(Real x, Real a, Real b, Real dv){
-    return (_almost_equal(x, a, dv) || _almost_equal(x, b, dv)) || (a <= x && x <= b);
-}
-
 struct Point {
-    bm::mpf_float_50 x, y;
+    long double x, y;
 
     Point operator-(const Point& p) const {
         return Point {x-p.x, y-p.y};
@@ -75,15 +55,11 @@ struct Point {
         os << "x: " << point.x << " y: " << point.y;
         return os;
     }
-/*
+
     bool operator==(const Point &rhs) const {
-        return falmost_equal(x, rhs.x, acceptable_error) &&
-               falmost_equal(y, rhs.y, acceptable_error);
+        return almost_equal(x, rhs.x, 4) && almost_equal(y, rhs.y, 4);
     }
-*/
-    bool operator==(const Point &rhs) const {
-        return x == rhs.x && y == rhs.y;
-    }
+
     bool operator!=(const Point &rhs) const {
         return !(rhs == *this);
     }
@@ -97,12 +73,11 @@ struct Segment {
         return Segment { Point {a.x - p.x, a.y - p.y}, Point {b.x - p.x, b.y - p.y} };
     }
 
-
     [[nodiscard]] bool contains (const Point& p) const {
 
         const auto crossproduct = (p.y - a.y) * (b.x - a.x) - (p.x - a.x) * (b.y - a.y);
 
-        if(bm::abs(crossproduct) > std::numeric_limits<double>::epsilon() * 4) {
+        if(std::fabs(crossproduct) > acceptable_error) {
             return false;
         }
 
@@ -121,17 +96,6 @@ struct Segment {
         return true;
     }
 
-/*
-    bool _contains(const Point& p) const {
-        double AB =  std::sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y));
-        double AP =  std::sqrt((p.x-a.x)*(p.x-a.x)+(p.y-a.y)*(p.y-a.y));
-        double PB =  std::sqrt((b.x-p.x)*(b.x-p.x)+(b.y-p.y)*(b.y-p.y));
-        par::pcout() << *this << " " << p << " " << std::setprecision(32) << std::fabs(AB - (AP+PB))<< std::setprecision(6)  << std::endl;
-
-        return std::fabs(AB - (AP+PB)) < 1e-12;
-        //return almost_equal(AB, AP + PB, 20);
-    }
-*/
     friend std::ostream &operator<<(std::ostream &os, const Segment &segment) {
         os << "a: " << segment.a << " b: " << segment.b;
         return os;
@@ -141,7 +105,6 @@ struct Segment {
 struct Line {
     Point p;
     Vector v;
-
     explicit Line(const Segment& s) : p(s.b), v(s.a - s.b) {}
     Line(Point&& p, Vector&& v) : p(p), v(v) {}
     Line(const Point& p, const Vector& v) : p(p), v(v) {}
@@ -157,7 +120,7 @@ inline std::optional<Point> intersection(const Line& l1, const Line& l2) {
 
     const auto D = (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x);
 
-    if(bm::abs(D) < acceptable_error) {
+    if(std::fabs(D) < acceptable_error) {
         return std::nullopt;
     }
 
@@ -473,8 +436,14 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
     b1_cgal.reserve(b1.size());
     b2_cgal.reserve(b2.size());
 
-    std::transform(b1.begin(), b1.end(), std::back_inserter(b1_cgal), [](const auto& p){return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());});
-    std::transform(b2.begin(), b2.end(), std::back_inserter(b2_cgal), [](const auto& p){return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());});
+    std::transform(b1.begin(), b1.end(), std::back_inserter(b1_cgal), [](const auto& p){
+        return Point2(p.x, p.y);
+        //return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());
+    });
+    std::transform(b2.begin(), b2.end(), std::back_inserter(b2_cgal), [](const auto& p){
+        return Point2(p.x, p.y);
+        //return Point2(p.x.template convert_to<double>(), p.y.template convert_to<double>());
+    });
 
     std::vector<Point2> chull1{}, chull2{};
 
