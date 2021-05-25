@@ -14,7 +14,7 @@
 #include "numeric/utils.hpp"
 #include <sstream>
 #include <mpi.h>
-
+namespace norcb{
 const double acceptable_error = 1e-12;
 
 template<class Real, class ForwardIt, class GetVelocityFunc>
@@ -141,5 +141,5 @@ void rotate(const std::array<std::array<Real, 2>, 2> &rotation_mat, ForwardIt el
         (position->at(1)) = ryi;
     }
 }
-
+}
 

@@ -24,7 +24,6 @@ typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type almost_
            || std::fabs(x - y) < std::numeric_limits<T>::min();
 }
 
-
 template<class Real>
 int sign(Real x, int ulp = 4) {
     //return x < static_cast<Real>(0) ? static_cast<Real>(-1) : (almost_equal(x, static_cast<Real>(0), 2) ? static_cast<Real>(0) : static_cast<Real>(1));
