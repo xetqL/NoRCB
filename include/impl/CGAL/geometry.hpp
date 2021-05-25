@@ -20,7 +20,7 @@
 #include <CGAL/ch_graham_andrew.h>
 #include <CGAL/Polygon_2_algorithms.h>
 #include <CGAL/ch_jarvis.h>
-
+namespace norcb {
 using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
 using ExactK   = CGAL::Exact_predicates_exact_constructions_kernel;
 using Polygon2 = CGAL::Polygon_2<K>;
@@ -190,5 +190,5 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
 
     return {poly1, poly2};
 }
-
+}
 #endif //YALBB_GEOMETRY_HPP

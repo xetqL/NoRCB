@@ -8,7 +8,7 @@
 #include <utility>
 #include <geometry_utils.hpp>
 #include "numeric/utils.hpp"
-
+namespace norcb{
 struct Point {
     long double x, y;
 
@@ -295,5 +295,5 @@ std::pair<Polygon, Polygon> bisect_polygon(const Polygon &poly, Real vx, Real vy
 
     return {poly1, poly2};
 }
-
+}
 #endif //YALBB_GEOMETRY_HPP

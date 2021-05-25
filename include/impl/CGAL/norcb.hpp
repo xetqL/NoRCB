@@ -14,9 +14,8 @@
 #include <mpi.h>
 #include <vector>
 #include <mpi.h>
-
+namespace norcb {
 struct NoRCB {
-    K trait {};
     int world_size, rank;
     Polygon2 domain;
     std::vector<Polygon2> subdomains{};
@@ -123,7 +122,7 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
 
             const Vector2 origin(0., 1.);
             //auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
-            auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
+            auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
             Vector2 avg_vel(avg_x, avg_y);
             auto theta         = get_angle(avg_vel, origin);
 
@@ -188,5 +187,6 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
         lb_struct->subdomains.at(i) = std::get<0>(p);
     }
 
+}
 }
 #endif //YALBB_NORCB_HPP
