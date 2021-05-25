@@ -7,7 +7,6 @@ project( norcb )
 set(CMAKE_CXX_STANDARD 17)
 
 # CGAL and its components
-find_package( CGAL QUIET COMPONENTS  )
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL Sanitize)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -19,10 +18,7 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL Profile)
   message("Flags for build type \"${CMAKE_BUILD_TYPE}\" are: ${CMAKE_CXX_FLAGS}")
 endif()
 
-if ( NOT CGAL_FOUND )
-  message(STATUS "This project requires the CGAL library, and will not be compiled.")
-  return()  
-endif()
+
 
 
 # Boost and its components
@@ -38,9 +34,11 @@ find_package(MPI REQUIRED)
 include_directories(include useful-algorithms/include ${MPI_INCLUDE_PATH})
 
 file(GLOB_RECURSE SRC src/*)
+file(GLOB_RECURSE HEADERS include/*)
 list(REMOVE_ITEM SRC src/main.cpp)
 
-add_library(norcb ${SRC})
+add_library(norcb STATIC ${HEADERS})
+set_target_properties(norcb PROPERTIES LINKER_LANGUAGE CXX)
 
 if(MPI_COMPILE_FLAGS)
   set_target_properties(norcb PROPERTIES
@@ -48,10 +46,18 @@ if(MPI_COMPILE_FLAGS)
 endif()
 
 if(MPI_LINK_FLAGS)
-  set_target_properties(norcb PROPERTIES
-          LINK_FLAGS "${MPI_LINK_FLAGS}")
+  set_target_properties(norcb PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
 
-# Link the executable to CGAL and third-party libraries
-target_link_libraries(norcb PUBLIC CGAL::CGAL ${MPI_LIBRARIES})
+if(USE_CGAL)
+  find_package( CGAL QUIET COMPONENTS  )
+  if ( NOT CGAL_FOUND )
+    message(STATUS "This project requires the CGAL library, and will not be compiled.")
+    return()
+  endif()
+  target_link_libraries(norcb PUBLIC CGAL::CGAL)
+  target_compile_definitions(norcb PUBLIC USE_CGAL)
+endif()
+
+target_link_libraries(norcb PUBLIC ${MPI_LIBRARIES})
 
