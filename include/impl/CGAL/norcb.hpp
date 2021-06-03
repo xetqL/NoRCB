@@ -14,12 +14,39 @@
 #include <mpi.h>
 #include <vector>
 #include <mpi.h>
+#include <any>
+
 namespace norcb {
+
+    struct BisectionTree {
+        std::any median;
+        BisectionTree *left = nullptr,
+                     *right = nullptr;
+
+        explicit BisectionTree(std::any val): median(val){}
+
+        template<class T>
+        void addLeft(T val) {
+            left = new BisectionTree(std::move(val));
+        }
+        template<class T>
+        void addRight(T val){
+            right = new BisectionTree(std::move(val));
+        }
+
+        ~BisectionTree() {
+            delete left;
+            delete right;
+        }
+    };
+
 struct NoRCB {
     int world_size, rank;
     Polygon2 domain;
     std::vector<Polygon2> subdomains{};
     MPI_Comm comm;
+
+    BisectionTree* bisections = nullptr;
 
     NoRCB(const Polygon2& domain, MPI_Comm comm) : domain(domain), comm(comm) {
         MPI_Comm_size(comm, &world_size);
@@ -93,15 +120,20 @@ template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFu
 void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_end,
                MPI_Datatype datatype, MPI_Comm comm,
           GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
+    using T = typename ForwardIt::value_type;
 
     std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>> partitions {};
-
+    std::vector<BisectionTree**> bisection_queue = {&lb_struct->bisections};
     partitions.emplace_back(lb_struct->domain, el_begin, el_end);
 
-    unsigned npart = partitions.size();
+    unsigned npart = 1;
     while (npart != P) {
         decltype(partitions) bisected_parts{};
-        for (auto &partition : partitions) {
+        decltype(bisection_queue) next_bisection_ptr{};
+        for (auto ipart = 0; ipart < npart; ++ipart) {
+            auto &partition = partitions.at(ipart);
+            auto ptr_bisection = bisection_queue.at(ipart);
+
             auto&[domain, el_begin, el_end] = partition;
             const unsigned elements_in_subdomain = std::distance(el_begin, el_end);
 
@@ -135,35 +167,45 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
             avg_vel = avg_vel / norm;
 
             Real median;
+            std::optional<T> pivot_hint;
+
+            if(*ptr_bisection) {
+                T el_median = std::any_cast<T>((*ptr_bisection)->median);
+                auto [rx, ry] = rotate(clockwise,
+                                       getPosition(&el_median)->at(0),
+                                       getPosition(&el_median)->at(1));
+                getPosition(&el_median)->at(0) = rx;
+                getPosition(&el_median)->at(1) = ry;
+                pivot_hint = el_median;
+            } else {
+                pivot_hint = std::nullopt;
+            }
+
             {
                 std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
                 auto midIdx = size / 2 - 1;
                 auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [&getPosition](const auto& a, const auto& b){
-                    auto posa = getPosition(&a);
-                    auto posb = getPosition(&b);
-                    return posa->at(0) < posb->at(0);
-                });
+                    return getPosition(&a)->at(0) < getPosition(&b)->at(0);
+                }, pivot_hint);
+
                 median = getPosition(&el_median)->at(0);
+
+                auto [rx, ry] = rotate(anticlockwise, median, getPosition(&el_median)->at(1));
+
+                getPosition(&el_median)->at(0) = rx;
+                getPosition(&el_median)->at(1) = ry;
+
+                if(!(*ptr_bisection)) {
+                    *ptr_bisection = new BisectionTree(el_median);
+                } else {
+                    (*ptr_bisection)->median = el_median;
+                }
             }
 
-            const auto c = std::count_if(el_begin, el_end, [getPosition, median](const auto& v) {
-                auto pos = getPosition(&v);
-                return pos->at(0) <= median;
+            auto el_median_it = std::partition(el_begin, el_end, [&getPosition, &median](const auto& el){
+                return getPosition(&el)->at(0) <= median;
             });
-            ForwardIt el_median = el_begin + c;
-
-            unsigned l = 0, r = 0, i = 0;
-            while(l < c) {
-                auto position = getPosition(&(*(el_begin + i)));
-                if (position->at(0) <= median) {
-                    l++;
-                }
-                if (position->at(0) > median) {
-                    std::iter_swap(el_begin + i, el_begin + c + r);
-                    r++;
-                }
-            }
 
             rotate(anticlockwise, el_begin, el_end, getPosition);
 
@@ -171,16 +213,17 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
 
             const Point2 pmedian(pmedx, pmedy);
 
-            //rotate(anticlockwise, el_median, el_end, getPosition);
-
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
 
-            bisected_parts.emplace_back(lpoly, el_begin,  el_median);
-            bisected_parts.emplace_back(rpoly, el_median, el_end);
+            bisected_parts.emplace_back(lpoly, el_begin,  el_median_it);
+            next_bisection_ptr.push_back(&(*ptr_bisection)->left);
+            bisected_parts.emplace_back(rpoly, el_median_it, el_end);
+            next_bisection_ptr.push_back(&(*ptr_bisection)->right);
         }
 
         npart *= 2;
         partitions = bisected_parts;
+        bisection_queue = next_bisection_ptr;
     }
     for(auto i = 0; i < lb_struct->world_size; ++i) {
         auto& p = partitions.at(i);
