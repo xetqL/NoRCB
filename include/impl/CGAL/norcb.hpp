@@ -191,7 +191,7 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
 
                 median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.001, comm,
                                                   [getPosition](const auto& v){return getPosition(&v)->at(0);},
-                                                  std::nullopt);
+                                                  std::nullopt).value_or(-1e12);
 
                 if(!(*ptr_bisection)) {
                     *ptr_bisection = new BisectionTree(median);
