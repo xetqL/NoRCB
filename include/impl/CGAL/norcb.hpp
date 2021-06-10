@@ -214,9 +214,9 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             // bisect the current polygon using the median point and the velocity vector
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
             // store the sub-domains for recursive partitioning
-            bisected_parts.emplace_back(lpoly, _el_begin,  el_median_it);
+            bisected_parts.emplace_back(lpoly, el_begin,  el_median_it);
             next_bisection_ptr.push_back(&(*ptr_bisection)->left);
-            bisected_parts.emplace_back(rpoly, el_median_it, _el_end);
+            bisected_parts.emplace_back(rpoly, el_median_it, el_end);
             next_bisection_ptr.push_back(&(*ptr_bisection)->right);
         }
         // number of partition increased by two
