@@ -191,7 +191,7 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
 
                 auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.001, comm,
                                                   [getPosition](const auto& v){return getPosition(&v)->at(0);},
-                                                  pivot_hint);
+                                                  pivot_hint, std::nullopt);
 
                 if(opt_median) {
                     std::tie(median, el_median_it) = opt_median.value();
