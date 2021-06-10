@@ -4,7 +4,7 @@
 #include <iostream>
 #include "norcb.hpp"
 #include <random>
-#include "spatial_elements.hpp"
+#include "norcb.hpp"
 #define CGAL_DISABLE_ROUNDING_MATH_CHECK ON
 using namespace norcb;
 /*

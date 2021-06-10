@@ -8,7 +8,6 @@
 #include "impl/CGAL/geometry.hpp"
 
 #include <parallel/algorithm.hpp>
-#include <parallel/blocklb.hpp>
 #include <parallel/geomedian.hpp>
 #include "geometry_utils.hpp"
 #include <tuple>
@@ -118,15 +117,15 @@ struct NoRCB {
     }
 };
 
-template<class Real, class ForwardIt, class GetPositionFunc, class GetVelocityFunc>
-void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_end,
+template<class Real, class RandomIt, class GetPositionFunc, class GetVelocityFunc>
+void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                MPI_Datatype datatype, MPI_Comm comm,
                GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
-    using T = typename ForwardIt::value_type;
+    using T = typename RandomIt::value_type;
     int rank, nprocs;
     MPI_Comm_size(comm, &nprocs);
     MPI_Comm_rank(comm, &rank);
-    std::vector<std::tuple<Polygon2, ForwardIt, ForwardIt>> partitions {};
+    std::vector<std::tuple<Polygon2, RandomIt, RandomIt>> partitions {};
     std::vector<BisectionTree**> bisection_queue = {&lb_struct->bisections};
     partitions.emplace_back(lb_struct->domain, el_begin, el_end);
 
@@ -138,20 +137,15 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
             auto &partition = partitions.at(ipart);
             auto ptr_bisection = bisection_queue.at(ipart);
 
-            auto&[domain, _el_begin, _el_end] = partition;
+            auto&[domain, el_begin, el_end] = partition;
 
-            std::vector<T> current_data(_el_begin, _el_end);
-            blocklb(rank, nprocs, current_data, datatype, comm);
-            auto el_begin = current_data.begin();
-            auto el_end   = current_data.end();
+            unsigned elements_in_subdomain = std::distance(el_begin, el_end);
 
-            const unsigned elements_in_subdomain = std::distance(el_begin, el_end);
-
+            // compute minx, maxx, miny, maxy
             Real minx = std::numeric_limits<Real>::max(),
                     maxx = std::numeric_limits<Real>::lowest(),
                     miny = std::numeric_limits<Real>::max(),
                     maxy = std::numeric_limits<Real>::lowest();
-
             std::for_each(el_begin, el_end, [&minx, &miny, &maxx, &maxy, getPosition] (const auto& e1) {
                 auto position = getPosition(&e1);
                 minx = std::min(position->at(0), minx);
@@ -160,70 +154,79 @@ void partition(NoRCB* lb_struct, unsigned P, ForwardIt el_begin, ForwardIt el_en
                 maxy = std::max(position->at(1), maxy);
             });
 
+            // compute longest axis
             const unsigned target_axis = ((maxx - minx) > (maxy - miny)) ? 0 : 1;
 
             const Vector2 origin(0., 1.);
-            //auto avg_vel = parallel_compute_average_velocity<Real>(el_begin, el_end, target_axis, comm, getPosition, getVelocity);
+
+            // compute average velocity vector
             auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
             Vector2 avg_vel(avg_x, avg_y);
+            // get angle between origin and velocity vector
             auto theta               = get_angle(avg_vel, origin);
+            // get rotation matrix clockwise and anticlockwise
             const auto clockwise     = get_rotation_matrix(theta);
             const auto anticlockwise = get_rotation_matrix(-theta);
 
+            // rotate data such that they are perpendicular to the cut axis (Y-axis)
             rotate(clockwise, el_begin, el_end, getPosition);
 
+            // normalize velocity vector
             const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
             avg_vel = avg_vel / norm;
 
+            // compute median
             Real median;
             std::optional<Real> pivot_hint;
-
             if(*ptr_bisection) {
                 pivot_hint = std::any_cast<Real>((*ptr_bisection)->median);
             } else {
                 pivot_hint = std::nullopt;
             }
 
+            RandomIt el_median_it;
             {
-                std::remove_const_t<decltype(elements_in_subdomain)>  size {0};
+                decltype(elements_in_subdomain)  size;
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
-                auto midIdx = size / 2 - 1;
 
-                median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.001, comm,
+                auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.001, comm,
                                                   [getPosition](const auto& v){return getPosition(&v)->at(0);},
-                                                  std::nullopt).value_or(-1e12);
+                                                  pivot_hint);
 
+                if(opt_median) {
+                    std::tie(median, el_median_it) = opt_median.value();
+                } else throw std::logic_error("can not find a good enough median value.");
+
+                // store median value for later use
                 if(!(*ptr_bisection)) {
                     *ptr_bisection = new BisectionTree(median);
                 } else {
                     (*ptr_bisection)->median = median;
                 }
-            }
+            } // end of median computation
 
-            rotate(clockwise, _el_begin, _el_end, getPosition);
-
-            auto el_median_it = std::partition(_el_begin, _el_end, [&getPosition, &median](const auto& el){
-                return getPosition(&el)->at(0) <= median;
-            });
-
-            rotate(anticlockwise, _el_begin, _el_end, getPosition);
-
+            // rotate elements backwards
+            rotate(anticlockwise, el_begin, el_end, getPosition);
+            // rotate the median point backward
             const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
-
+            // Create the median point
             const Point2 pmedian(pmedx, pmedy);
-
+            // bisect the current polygon using the median point and the velocity vector
             const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
-
+            // store the sub-domains for recursive partitioning
             bisected_parts.emplace_back(lpoly, _el_begin,  el_median_it);
             next_bisection_ptr.push_back(&(*ptr_bisection)->left);
             bisected_parts.emplace_back(rpoly, el_median_it, _el_end);
             next_bisection_ptr.push_back(&(*ptr_bisection)->right);
         }
-
+        // number of partition increased by two
         npart *= 2;
+        // sub-domains are the domain we will cut in the next iteration
         partitions = bisected_parts;
         bisection_queue = next_bisection_ptr;
     }
+
+    // Update the load balancing structure
     for(auto i = 0; i < lb_struct->world_size; ++i) {
         auto& p = partitions.at(i);
         lb_struct->subdomains.at(i) = std::get<0>(p);

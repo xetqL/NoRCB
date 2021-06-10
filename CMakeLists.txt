@@ -61,3 +61,6 @@ endif()
 
 target_link_libraries(norcb PUBLIC ${MPI_LIBRARIES})
 
+
+add_executable(default tests/main.cpp)
+target_include_directories(default PUBLIC useful-algorithms/include)
