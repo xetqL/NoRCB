@@ -189,7 +189,7 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                 decltype(elements_in_subdomain)  size;
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
 
-                auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.001, comm,
+                auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.005, comm,
                                                   [getPosition](const auto& v){return getPosition(&v)->at(0);},
                                                   pivot_hint, std::nullopt);
 
