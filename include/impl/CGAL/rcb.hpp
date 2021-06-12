@@ -1,14 +1,13 @@
 //
-// Created by xetql on 5/25/21.
+// Created by xetql on 6/10/21.
 //
 
-#ifndef YALBB_NORCB_HPP
-#define YALBB_NORCB_HPP
-
+#pragma once
 #include "impl/CGAL/geometry.hpp"
 
 #include <parallel/algorithm.hpp>
 #include <parallel/geomedian.hpp>
+
 #include "geometry_utils.hpp"
 #include <tuple>
 #include <iostream>
@@ -17,7 +16,7 @@
 #include <mpi.h>
 #include <any>
 
-namespace norcb {
+namespace rcb {
 
 struct BisectionTree {
     std::any median;
@@ -30,6 +29,7 @@ struct BisectionTree {
     void addLeft(T val) {
         left = new BisectionTree(std::move(val));
     }
+
     template<class T>
     void addRight(T val){
         right = new BisectionTree(std::move(val));
@@ -40,7 +40,8 @@ struct BisectionTree {
         delete right;
     }
 };
-struct NoRCB {
+
+struct RCB {
     int world_size, rank;
     Polygon2 domain;
     std::vector<Polygon2> subdomains{};
@@ -48,13 +49,13 @@ struct NoRCB {
 
     BisectionTree* bisections = nullptr;
 
-    NoRCB(const Polygon2& domain, MPI_Comm comm) : domain(domain), comm(comm) {
+    RCB(const Polygon2& domain, MPI_Comm comm) : domain(domain), comm(comm) {
         MPI_Comm_size(comm, &world_size);
         MPI_Comm_rank(comm, &rank);
         subdomains.resize(world_size);
     }
 
-    NoRCB(const Polygon2& domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
+    RCB(const Polygon2& domain, std::vector<Polygon2> subdomains, MPI_Comm comm) : domain(domain), comm(comm), subdomains(std::move(subdomains)) {
         MPI_Comm_size(comm, &world_size);
         MPI_Comm_rank(comm, &rank);
     }
@@ -117,7 +118,7 @@ struct NoRCB {
 };
 
 template<class Real, class RandomIt, class GetPositionFunc, class GetVelocityFunc>
-void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
+void partition(RCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                MPI_Datatype datatype, MPI_Comm comm,
                GetPositionFunc getPosition, GetVelocityFunc getVelocity) {
     using T = typename RandomIt::value_type;
@@ -158,26 +159,15 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             MPI_Allreduce(MPI_IN_PLACE, maxs.data(), 2, par::get_mpi_type<Real>(), MPI_MAX, comm);
 
             // compute longest axis
-            unsigned target_axis = ((maxs[0] - mins[0]) > (maxs[1] - mins[1])) ? 0 : 1;
-            //target_axis = iter % 2;
-            const Vector2 origin(0., 1.);
-
-            // compute average velocity vector
-            auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
-            Vector2 avg_vel(avg_x, avg_y);
-            // get angle between origin and velocity vector
-            auto theta               = get_angle(avg_vel, origin);
-            // get rotation matrix clockwise and anticlockwise
-            const auto clockwise     = get_rotation_matrix(theta);
-            const auto anticlockwise = get_rotation_matrix(-theta);
-
-            // rotate data such that they are perpendicular to the cut axis (Y-axis)
-            rotate(clockwise, el_begin, el_end, getPosition);
-
-            // normalize velocity vector
-            const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
-            avg_vel = avg_vel / norm;
-
+            unsigned longest_axis = ((maxs[0] - mins[0]) < (maxs[1] - mins[1]));
+            Real avg_vel_x, avg_vel_y;
+            if(longest_axis == 0) {
+                avg_vel_x = 0.0;
+                avg_vel_y = 1.0;
+            } else {
+                avg_vel_x = -1.0;
+                avg_vel_y = 0.0;
+            }
             // compute median
             Real median;
             std::optional<Real> pivot_hint;
@@ -193,8 +183,8 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
 
                 auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.005, comm,
-                                                  [getPosition](const auto& v){return getPosition(&v)->at(0);},
-                                                  pivot_hint, std::nullopt);
+                                                           [getPosition, longest_axis](const auto& v){return getPosition(&v)->at(longest_axis);},
+                                                           std::nullopt, std::nullopt);
 
                 if(opt_median) {
                     std::tie(median, el_median_it) = opt_median.value();
@@ -208,20 +198,29 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                 }
             } // end of median computation
 
-            // rotate elements backwards
-            rotate(anticlockwise, el_begin, el_end, getPosition);
             // rotate the median point backward
-            const auto[pmedx, pmedy] = rotate(anticlockwise, median, 1.0);
+            Real pmedx, pmedy;
+            if(longest_axis == 0) {
+                pmedx = median;
+                pmedy = 1.0;
+            } else {
+                pmedx = 1.0;
+                pmedy = median;
+            }
+
             // Create the median point
             const Point2 pmedian(pmedx, pmedy);
             // bisect the current polygon using the median point and the velocity vector
-            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel, pmedian);
+            const auto[lpoly, rpoly] = bisect_polygon(domain, avg_vel_x, avg_vel_y, pmedian);
+
             // store the sub-domains for recursive partitioning
             bisected_parts.emplace_back(lpoly, el_begin,  el_median_it);
             next_bisection_ptr.push_back(&(*ptr_bisection)->left);
+
             bisected_parts.emplace_back(rpoly, el_median_it, el_end);
             next_bisection_ptr.push_back(&(*ptr_bisection)->right);
         }
+
         // number of partition increased by two
         npart *= 2;
         // sub-domains are the domain we will cut in the next iteration
@@ -238,4 +237,3 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
 
 }
 }
-#endif //YALBB_NORCB_HPP

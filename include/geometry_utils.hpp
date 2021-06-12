@@ -14,42 +14,8 @@
 #include "numeric/utils.hpp"
 #include <sstream>
 #include <mpi.h>
-namespace norcb{
+
 const double acceptable_error = 1e-12;
-
-template<class Real, class ForwardIt, class GetVelocityFunc>
-std::pair<Real, Real> par_get_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
-                                               GetVelocityFunc getVelocity) {
-
-    auto size = std::distance(el_begin, el_end);
-
-    std::array<Real, 2> s = {0., 0.};
-    auto folding_axis = ((longest_axis + 1) % 2);
-
-    decltype(size) total_size;
-
-    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
-
-    // O(n/p)
-    for (auto i = 0; i < size; ++i) {
-        auto velocity = *getVelocity(&(*(el_begin + i)));
-        const auto d2 = velocity[0]*velocity[0] + velocity[1]*velocity[1];
-        velocity[0] /= d2; velocity[1] /= d2;
-        if(velocity.at(folding_axis) < 0) {
-            s[0] += -velocity.at(0);
-            s[1] += -velocity.at(1);
-        } else {
-            s[0] += velocity.at(0);
-            s[1] += velocity.at(1);
-        }
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
-
-    return {s[0] / total_size, s[1] / total_size};
-}
-
-
 
 template<class Real>
 Real side(Real tx, Real ty, Real dx, Real dy) {
@@ -141,5 +107,38 @@ void rotate(const std::array<std::array<Real, 2>, 2> &rotation_mat, ForwardIt el
         (position->at(1)) = ryi;
     }
 }
+
+template<class Real, class ForwardIt, class GetVelocityFunc>
+std::pair<Real, Real> par_get_average_velocity(ForwardIt el_begin, ForwardIt el_end, unsigned longest_axis, MPI_Comm comm,
+                                               GetVelocityFunc getVelocity) {
+
+    auto size = std::distance(el_begin, el_end);
+
+    std::array<Real, 2> s = {0., 0.};
+    auto folding_axis = ((longest_axis + 1) % 2);
+
+    decltype(size) total_size;
+
+    MPI_Allreduce(&size, &total_size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
+    auto rot = get_rotation_matrix(M_PI);
+    // O(n/p)
+    for (auto i = 0; i < size; ++i) {
+        auto velocity = *getVelocity(&(*(el_begin + i)));
+        const auto d2 = (velocity[0]*velocity[0] + velocity[1]*velocity[1]);
+        velocity[0] /= d2; velocity[1] /= d2;
+
+        if(velocity.at(folding_axis) < 0) {
+            s[0] += -velocity.at(0);
+            s[1] += -velocity.at(1);
+         } else {
+            s[0] += velocity.at(0);
+            s[1] += velocity.at(1);
+         }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);
+
+    return {s[0] / total_size, s[1] / total_size};
 }
+
 

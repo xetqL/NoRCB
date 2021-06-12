@@ -20,7 +20,7 @@
 #include <CGAL/ch_graham_andrew.h>
 #include <CGAL/Polygon_2_algorithms.h>
 #include <CGAL/ch_jarvis.h>
-namespace norcb {
+
 using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
 using ExactK   = CGAL::Exact_predicates_exact_constructions_kernel;
 using Polygon2 = CGAL::Polygon_2<K>;
@@ -162,12 +162,13 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
         }
     }
 
+
     // remove duplicates
     auto last = distinct(intersections.begin(), intersections.end(), P2Comp{});
     intersections.erase(last, intersections.end());
 
     if(intersections.size() != 2) {
-        throw std::logic_error("A line intersects 2 polygon edges.");
+        throw std::logic_error(fmt("a line intersects 2 edges in a polygon not %d", intersections.size()));
     }
 
     std::vector<Point2> b1(intersections.begin(), intersections.end()),
@@ -190,5 +191,5 @@ std::pair<Polygon2, Polygon2> bisect_polygon(const Polygon2 &poly, Real vx, Real
 
     return {poly1, poly2};
 }
-}
+
 #endif //YALBB_GEOMETRY_HPP
