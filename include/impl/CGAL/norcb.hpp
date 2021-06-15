@@ -192,14 +192,13 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                 decltype(elements_in_subdomain)  size;
                 MPI_Allreduce(&elements_in_subdomain, &size, 1, par::get_mpi_type<decltype(size)>(), MPI_SUM, comm);
 
-                auto opt_median = par::find_spatial_median(rank, nprocs, el_begin, el_end, 0.005, comm,
-                                                  [getPosition](const auto& v){return getPosition(&v)->at(0);},
-                                                  pivot_hint, std::nullopt);
-
-                if(opt_median) {
-                    std::tie(median, el_median_it) = opt_median.value();
-                } else throw std::logic_error("can not find a good enough median value.");
-
+                auto midIdx = size / 2 - 1;
+                auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [&getPosition](const auto& a, const auto& b){
+                        auto posa = getPosition(&a);
+                        auto posb = getPosition(&b);
+                        return posa->at(0) < posb->at(0);
+                    });
+                median = getPosition(&el_median)->at(0);
                 // store median value for later use
                 if(!(*ptr_bisection)) {
                     *ptr_bisection = new BisectionTree(median);
@@ -207,6 +206,12 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                     (*ptr_bisection)->median = median;
                 }
             } // end of median computation
+            const auto c = std::count_if(el_begin, el_end, [&getPosition, &median](const auto& v) {
+                    auto pos = getPosition(&v);
+                    return pos->at(0) <= median;
+                });
+
+            el_median_it = el_begin + c;
 
             // rotate elements backwards
             rotate(anticlockwise, el_begin, el_end, getPosition);
