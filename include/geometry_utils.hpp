@@ -124,16 +124,8 @@ std::pair<Real, Real> par_get_average_velocity(ForwardIt el_begin, ForwardIt el_
     // O(n/p)
     for (auto i = 0; i < size; ++i) {
         auto velocity = *getVelocity(&(*(el_begin + i)));
-        const auto d2 = (velocity[0]*velocity[0] + velocity[1]*velocity[1]);
-        velocity[0] /= d2; velocity[1] /= d2;
-
-        if(velocity.at(folding_axis) < 0) {
-            s[0] += -velocity.at(0);
-            s[1] += -velocity.at(1);
-         } else {
-            s[0] += velocity.at(0);
-            s[1] += velocity.at(1);
-         }
+        s[0] += velocity.at(0);
+        s[1] += velocity.at(1);
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);

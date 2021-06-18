@@ -158,13 +158,21 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             MPI_Allreduce(MPI_IN_PLACE, maxs.data(), 2, par::get_mpi_type<Real>(), MPI_MAX, comm);
 
             // compute longest axis
-            unsigned target_axis = ((maxs[0] - mins[0]) > (maxs[1] - mins[1])) ? 0 : 1;
-            //target_axis = iter % 2;
-            const Vector2 origin(0., 1.);
+            unsigned longest_axis = ((maxs[0] - mins[0]) < (maxs[1] - mins[1])) ? 0 : 1;
+
+            const Vector2 origin(0.0, 1.0) ;
+            //const Vector2(longest_axis, (longest_axis + 1) % 2) ;
 
             // compute average velocity vector
-            auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, target_axis, comm, getVelocity);
+            auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, longest_axis, comm, getVelocity);
+
+            auto norm = std::sqrt(CGAL::to_double(avg_x * avg_x + avg_y * avg_y));
             Vector2 avg_vel(avg_x, avg_y);
+
+            if(norm < 1e-9) {
+                avg_vel = Vector2(longest_axis, (longest_axis + 1) % 2) ;
+            }
+
             // get angle between origin and velocity vector
             auto theta               = get_angle(avg_vel, origin);
             // get rotation matrix clockwise and anticlockwise
@@ -175,7 +183,7 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             rotate(clockwise, el_begin, el_end, getPosition);
 
             // normalize velocity vector
-            const auto norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
+            norm = std::sqrt(CGAL::to_double(avg_vel.x() * avg_vel.x() + avg_vel.y() * avg_vel.y()));
             avg_vel = avg_vel / norm;
 
             // compute median
@@ -198,6 +206,7 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                         auto posb = getPosition(&b);
                         return posa->at(0) < posb->at(0);
                     });
+
                 median = getPosition(&el_median)->at(0);
                 // store median value for later use
                 if(!(*ptr_bisection)) {
@@ -210,7 +219,6 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
                     auto pos = getPosition(&v);
                     return pos->at(0) <= median;
                 });
-
             el_median_it = el_begin + c;
 
             // rotate elements backwards
