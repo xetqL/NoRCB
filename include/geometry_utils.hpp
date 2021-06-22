@@ -124,8 +124,9 @@ std::pair<Real, Real> par_get_average_velocity(ForwardIt el_begin, ForwardIt el_
     // O(n/p)
     for (auto i = 0; i < size; ++i) {
         auto velocity = *getVelocity(&(*(el_begin + i)));
-        s[0] += velocity.at(0);
-        s[1] += velocity.at(1);
+        auto norm     = std::sqrt(velocity.at(0)*velocity.at(0) + velocity.at(1)*velocity.at(1));
+        s[0] += velocity.at(0) / norm;
+        s[1] += velocity.at(1) / norm;
     }
 
     MPI_Allreduce(MPI_IN_PLACE, s.data(), 2, par::get_mpi_type<Real>() , MPI_SUM, comm);

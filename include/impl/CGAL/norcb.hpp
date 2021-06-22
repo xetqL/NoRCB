@@ -158,10 +158,9 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             MPI_Allreduce(MPI_IN_PLACE, maxs.data(), 2, par::get_mpi_type<Real>(), MPI_MAX, comm);
 
             // compute longest axis
-            unsigned longest_axis = ((maxs[0] - mins[0]) < (maxs[1] - mins[1])) ? 0 : 1;
+            unsigned longest_axis = ((maxs[0] - mins[0]) < (maxs[1] - mins[1])) ? 1 : 0;
 
-            const Vector2 origin(0.0, 1.0) ;
-            //const Vector2(longest_axis, (longest_axis + 1) % 2) ;
+            const Vector2 origin( 0.0, 1.0) ;
 
             // compute average velocity vector
             auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, longest_axis, comm, getVelocity);
@@ -169,7 +168,7 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             auto norm = std::sqrt(CGAL::to_double(avg_x * avg_x + avg_y * avg_y));
             Vector2 avg_vel(avg_x, avg_y);
 
-            if(norm < 1e-9) {
+            if(norm < 1e-3) {
                 avg_vel = Vector2(longest_axis, (longest_axis + 1) % 2) ;
             }
 
