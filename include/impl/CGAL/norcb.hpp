@@ -160,15 +160,15 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
             // compute longest axis
             unsigned longest_axis = ((maxs[0] - mins[0]) < (maxs[1] - mins[1])) ? 1 : 0;
 
-            const Vector2 origin( 0.0, 1.0) ;
+            const Vector2 origin(0.0, 1.0);
 
             // compute average velocity vector
             auto [avg_x, avg_y] = par_get_average_velocity<Real>(el_begin, el_end, longest_axis, comm, getVelocity);
 
-            auto norm = std::sqrt(CGAL::to_double(avg_x * avg_x + avg_y * avg_y));
+            auto norm = std::sqrt( CGAL::to_double(avg_x*avg_x + avg_y*avg_y) );
             Vector2 avg_vel(avg_x, avg_y);
 
-            if(norm < 1e-3) {
+            if (norm < 1e-3) {
                 avg_vel = Vector2(longest_axis, (longest_axis + 1) % 2) ;
             }
 
@@ -201,10 +201,10 @@ void partition(NoRCB* lb_struct, unsigned P, RandomIt el_begin, RandomIt el_end,
 
                 auto midIdx = size / 2 - 1;
                 auto el_median = par::find_nth(el_begin, el_end, midIdx, datatype, comm, [&getPosition](const auto& a, const auto& b){
-                        auto posa = getPosition(&a);
-                        auto posb = getPosition(&b);
-                        return posa->at(0) < posb->at(0);
-                    });
+                    auto posa = getPosition(&a);
+                    auto posb = getPosition(&b);
+                    return posa->at(0) < posb->at(0);
+                });
 
                 median = getPosition(&el_median)->at(0);
                 // store median value for later use

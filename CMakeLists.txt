@@ -49,7 +49,6 @@ if(MPI_LINK_FLAGS)
   set_target_properties(norcb PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
 
-if(USE_CGAL)
   find_package( CGAL QUIET COMPONENTS  )
   if ( NOT CGAL_FOUND )
     message(STATUS "This project requires the CGAL library, and will not be compiled.")
@@ -57,7 +56,6 @@ if(USE_CGAL)
   endif()
   target_link_libraries(norcb PUBLIC CGAL::CGAL)
   target_compile_definitions(norcb PUBLIC USE_CGAL)
-endif()
 
 target_link_libraries(norcb PUBLIC ${MPI_LIBRARIES})
 
