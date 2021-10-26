@@ -58,7 +58,3 @@ endif()
   target_compile_definitions(norcb PUBLIC USE_CGAL)
 
 target_link_libraries(norcb PUBLIC ${MPI_LIBRARIES})
-
-
-add_executable(default tests/main.cpp)
-target_include_directories(default PUBLIC useful-algorithms/include)
