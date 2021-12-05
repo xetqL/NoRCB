@@ -269,6 +269,7 @@ void sendrecv(std::vector<typename FwIt::value_type>& recv_buf, int* rcount, FwI
     MPI_Wait(&sreq, MPI_STATUS_IGNORE);
 }
 
+
 template<class T, class Real, class GetPositionFunc, class GetVelocityFunc>
 void do_partition(NoRCB* lb_struct, unsigned P, std::vector<T>& elements,
                MPI_Datatype datatype, MPI_Comm world_comm,
@@ -424,6 +425,7 @@ void do_partition(NoRCB* lb_struct, unsigned P, std::vector<T>& elements,
     auto beg  = domain.vertices_begin();
     auto end  = domain.vertices_end();
 
+    int count_vertices = domain.size() * 2;
     std::vector<Real> vertices(domain.size() * 2, 0.0);
 
     for(int i=0; i < domain.size(); beg++, i++) {
@@ -432,18 +434,26 @@ void do_partition(NoRCB* lb_struct, unsigned P, std::vector<T>& elements,
         vertices.at(2*i+1) = p.y();
     }
 
-    std::vector<Real> rcv_vertices(lb_struct->world_size * vertices.size());
-    MPI_Allgather(vertices.data(), vertices.size(), par::get_mpi_type<Real>(), rcv_vertices.data(), vertices.size(), par::get_mpi_type<Real>(), world_comm);
+    std::vector<int> n_vertices_per_procs(lb_struct->world_size);
+    std::vector<int> recv_displs(lb_struct->world_size);
+    MPI_Allgather(&count_vertices, 1, par::get_mpi_type<decltype(count_vertices)>(),
+            n_vertices_per_procs.data(), 1, par::get_mpi_type<decltype(count_vertices)>(), world_comm);
+    std::exclusive_scan(n_vertices_per_procs.begin(), n_vertices_per_procs.end(), recv_displs.begin(), 0);
+    auto n_vertices = std::accumulate(n_vertices_per_procs.begin(), n_vertices_per_procs.end(), 0);
+    std::vector<Real> rcv_vertices(n_vertices);
+    MPI_Allgatherv(vertices.data(), vertices.size(), par::get_mpi_type<Real>(),
+                   rcv_vertices.data(), n_vertices_per_procs.data(), recv_displs.data(), par::get_mpi_type<Real>(),
+                   world_comm);
+
     for (int i = 0; i < lb_struct->world_size; ++i) {
         Polygon2 poly;
-        for(int vpos = 0; vpos < vertices.size(); vpos+=2) {
+        for(int vpos = 0; vpos < n_vertices_per_procs.at(i); vpos+=2) {
             poly.push_back(
-                    Point2(rcv_vertices.at(i * vertices.size() + vpos),
-                           rcv_vertices.at(i * vertices.size() + vpos + 1)));
+                    Point2(rcv_vertices.at(recv_displs.at(i) + vpos),
+                           rcv_vertices.at(recv_displs.at(i) + vpos + 1)));
         }
         lb_struct->subdomains.at(i) = poly;
     }
 }
-
 }
 #endif //YALBB_NORCB_HPP
