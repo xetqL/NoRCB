@@ -51,3 +51,4 @@ target_compile_definitions(test PUBLIC USE_CGAL)
 target_compile_definitions(test PUBLIC USE_CGAL=1)
 
 set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
+
