@@ -18,7 +18,7 @@ find_package(Boost REQUIRED)
 find_package(MPI REQUIRED)
 find_package(CGAL QUIET COMPONENTS REQUIRED)
 
-add_subdirectory(useful-algorithms)
+# add_subdirectory(useful-algorithms)
 
 # include for local directory
 include_directories(include useful-algorithms/include ${MPI_INCLUDE_PATH})
