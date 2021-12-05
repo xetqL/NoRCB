@@ -1,0 +1,13 @@
+- 500 * 100 iterations
+- 1.0x1.0x1.0 size
+- epsilon LJ 0.1 
+BlackHole:
+	dt: 3e-6
+	G: 1.0
+ContractingCircles:
+	dt: 1e-6
+	T: 1.0
+Gravity:
+	dt: 5e-6
+	G: 3.0
+	
