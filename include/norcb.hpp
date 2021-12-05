@@ -5,6 +5,8 @@
 #ifndef NORCB_NORCB_HPP
 #define NORCB_NORCB_HPP
 
+#define USE_CGAL 1
+
 #ifdef USE_CGAL
 #include "impl/CGAL/norcb.hpp"
 #else

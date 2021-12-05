@@ -3,6 +3,9 @@
 //
 
 #pragma once
+
+#define USE_CGAL 1
+
 #ifdef USE_CGAL
 #include "impl/CGAL/rcb.hpp"
 #else

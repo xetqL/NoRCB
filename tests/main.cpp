@@ -5,20 +5,87 @@
 #include "norcb.hpp"
 #include <random>
 #include "norcb.hpp"
+#include <parallel/algorithm.hpp>
 #define CGAL_DISABLE_ROUNDING_MATH_CHECK ON
+using Real = float;
+using Index= size_t;
 using namespace norcb;
-/*
-struct Particle2 {
-    using value_type = double;
-    std::array<value_type, 2> position {}, velocity {};
-    Particle2(std::array<value_type, 2> position, std::array<value_type, 2> velocity) : position(position),
-        velocity(velocity) {}
-};
-*/
+    template<unsigned N>
+    struct Element {
+        static const auto dimension = N;
+
+        Index gid;
+        Index lid;
+        std::array<Real, N> position, velocity;
+
+        constexpr Element(std::array<Real, N> p, std::array<Real, N> v, const Index gid, const Index lid) : gid(gid),
+                                                                                                            lid(lid),
+                                                                                                            position(p),
+                                                                                                            velocity(v) {}
+
+        constexpr Element() : gid(0), lid(0), position(), velocity() {}
+
+        friend std::ostream &operator<<(std::ostream &os, const Element &element) {
+            os << element.position.at(0);
+            for (int i = 1; i < N; i++) {
+                os << "," << element.position.at(i);
+            }
+            os << "; ";
+            os << element.position.at(0);
+            for (int i = 1; i < N; i++) {
+                os << "," << element.velocity.at(i);
+            }
+            os << element.gid << ";" << element.lid;
+            return os;
+        }
+
+        inline static MPI_Datatype register_datatype() {
+            constexpr const bool UseDoublePrecision = std::is_same<Real, double>::value;
+            MPI_Datatype element_datatype, vec_datatype, oldtype_element[2];
+
+            MPI_Aint offset[2], lb, intex;
+
+            int blockcount_element[2];
+
+            // register particle element type
+            constexpr int array_size = N;
+            auto mpi_raw_datatype = UseDoublePrecision ? MPI_DOUBLE : MPI_FLOAT;
+
+            MPI_Type_contiguous(array_size, mpi_raw_datatype, &vec_datatype);
+
+            MPI_Type_commit(&vec_datatype);
+
+            blockcount_element[0] = 2; //gid, lid
+            blockcount_element[1] = 2; //position, velocity
+
+            oldtype_element[0] = MPI_LONG_LONG;
+            oldtype_element[1] = vec_datatype;
+
+            MPI_Type_get_extent(MPI_LONG_LONG, &lb, &intex);
+
+            offset[0] = static_cast<MPI_Aint>(0);
+            offset[1] = blockcount_element[0] * intex;
+
+            MPI_Type_create_struct(2, blockcount_element, offset, oldtype_element, &element_datatype);
+
+            MPI_Type_commit(&element_datatype);
+
+            return element_datatype;
+        }
+
+        inline static std::array<Real, N> *getElementPositionPtr(Element<N> *e) {
+            return &(e->position);
+        }
+
+        inline static std::array<Real, N> *getElementVelocityPtr(Element<N> *e) {
+            return &(e->velocity);
+        }
+    };
+
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
-    auto datatype = elements::register_datatype<2>();
+    auto datatype = Element<2>::register_datatype();
     int wsize, rank;
     MPI_Comm_size(MPI_COMM_WORLD, &wsize);
 
@@ -29,76 +96,22 @@ int main(int argc, char** argv) {
 
     std::random_device rd{};
     std::mt19937 gen(time(NULL));
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    std::uniform_real_distribution<Real> dist(0.0, 1.0);
 
-    std::vector<double> x, y;
-    std::vector<double> vx, vy;
-    std::vector<elements::Element<2>> particles {};
+    std::vector<Real> x, y;
+    std::vector<Real> vx, vy;
+    std::vector<Element<2>> particles {};
 
     if(!rank)
         for(unsigned i = 0; i < 10000*wsize*N; ++i){
-            std::array<double, 2> pos = {dist(gen), dist(gen)};
-            std::array<double, 2> vel = {dist(gen), dist(gen)};
-            particles.push_back(elements::Element<2>(pos, vel, 0, 0));
+            std::array<Real, 2> pos = {dist(gen), dist(gen)};
+            std::array<Real, 2> vel = {dist(gen), dist(gen)};
+            particles.emplace_back(pos, vel, 0, 0);
         }
 
     CGAL::set_pretty_mode(std::cout);
 
-    auto parts = parallel::partition<double>(wsize, particles.begin(), particles.end(), d, datatype, MPI_COMM_WORLD, [](auto* p){
-        return &p->position;
-    }, [](auto* p){
-        return &p->velocity;
-    });
-
-    std::vector<unsigned> domain_size(wsize, 0);
-    std::for_each(parts.begin(), parts.end(),  [&domain_size, i=0] (const auto& p) mutable {
-        domain_size.at(i) += (std::get<2>(p) - std::get<1>(p));
-        i++;
-    });
-
-    MPI_Allreduce(MPI_IN_PLACE, domain_size.data(), wsize, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
-
-    if(!rank){
-        std::copy(domain_size.begin(), domain_size.end(), std::ostream_iterator<int>(std::cout, " "));
-        auto max = (double) *std::max_element(domain_size.begin(), domain_size.end());
-        auto avg = (double) std::accumulate(domain_size.begin(), domain_size.end(), 0u) / domain_size.size();
-        std::cout << ser::fmt("\nPercent Imbalance = %f\nImbalance Loss = %f", (max / avg)-1.0, max-avg) << std::endl;
-    }
-
-
-    particles.clear();
-    if(rank % 2)
-        for(unsigned i = 0; i < 5000*wsize*N; ++i) {
-            std::array<double, 2> pos = {dist(gen), dist(gen)};
-            std::array<double, 2> vel = {dist(gen), dist(gen)};
-            particles.push_back(elements::Element<2>(pos, vel, 0, 0));
-        }
-
-    parts = parallel::partition<double>(wsize, particles.begin(), particles.end(), d, datatype, MPI_COMM_WORLD, [](auto* p){
-        return &p->position;
-    }, [](auto* p){
-        return &p->velocity;
-    });
-    parts = parallel::partition<double>(wsize, particles.begin(), particles.end(), d, datatype, MPI_COMM_WORLD, [](auto* p){
-        return &p->position;
-    }, [](auto* p){
-        return &p->velocity;
-    });
-    
-    std::for_each(parts.begin(), parts.end(),  [&domain_size, i=0] (const auto& p) mutable {
-        domain_size.at(i) += (std::get<2>(p) - std::get<1>(p));
-        i++;
-    });
-
-    MPI_Allreduce(MPI_IN_PLACE, domain_size.data(), wsize, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
-
-    if(!rank){
-        std::copy(domain_size.begin(), domain_size.end(), std::ostream_iterator<int>(std::cout, " "));
-        auto max = (double) *std::max_element(domain_size.begin(), domain_size.end());
-        auto avg = (double) std::accumulate(domain_size.begin(), domain_size.end(), 0u) / domain_size.size();
-        std::cout << ser::fmt("\nPercent Imbalance = %f\nImbalance Loss = %f", (max / avg)-1.0, max-avg) << std::endl;
-    }
-
+    do_partition<Element<2>, Real>();
 
     MPI_Finalize();
 
