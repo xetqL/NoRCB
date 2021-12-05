@@ -41,14 +41,3 @@ endif()
 target_link_libraries(norcb PUBLIC CGAL::CGAL ${MPI_LIBRARIES})
 target_compile_definitions(norcb PUBLIC USE_CGAL)
 target_compile_definitions(norcb PUBLIC USE_CGAL=1)
-
-
-add_executable(test tests/main.cpp)
-
-target_include_directories(test PUBLIC useful-algorithms/include)
-target_link_libraries(test PUBLIC CGAL::CGAL ${MPI_LIBRARIES})
-target_compile_definitions(test PUBLIC USE_CGAL)
-target_compile_definitions(test PUBLIC USE_CGAL=1)
-
-set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
-
